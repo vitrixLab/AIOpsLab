@@ -9,6 +9,7 @@
 [📂Project Structure](#📂project-structure) |
 [📄How to Cite](#📄how-to-cite)
 
+[![ArXiv Link](https://img.shields.io/badge/arXiv-2501.06706-red?logo=arxiv)](https://arxiv.org/pdf/2501.06706)
 [![ArXiv Link](https://img.shields.io/badge/arXiv-2407.12165-red?logo=arxiv)](https://arxiv.org/pdf/2407.12165)
 </div>
 
@@ -19,50 +20,82 @@
 ![alt text](./assets/images/aiopslab-arch-open-source.png)
 
 
-AIOpsLab is a holistic framework to enable the design, development, and evaluation of autonomous AIOps agents that, additionally, serves the purpose of building reproducible, standardized, interoperable and scalable benchmarks. AIOpsLab can deploy microservice cloud environments, inject faults, generate workloads, and export telemetry data, while orchestrating these components and providing interfaces for interacting with and evaluating agents. 
+AIOpsLab is a holistic framework to enable the design, development, and evaluation of autonomous AIOps agents that, additionally, serve the purpose of building reproducible, standardized, interoperable and scalable benchmarks. AIOpsLab can deploy microservice cloud environments, inject faults, generate workloads, and export telemetry data, while orchestrating these components and providing interfaces for interacting with and evaluating agents. 
 
 Moreover, AIOpsLab provides a built-in benchmark suite with a set of problems to evaluate AIOps agents in an interactive environment. This suite can be easily extended to meet user-specific needs. See the problem list [here](/aiopslab/orchestrator/problems/registry.py#L15).
 
+<h2 id="📦installation">📦 Installation</h2>
 
+### Requirements
+- Python >= 3.11
+- [Helm](https://helm.sh/)
+- Additional requirements depend on the deployment option selected, which is explained in the next section
 
-<h2 id="📦installation">📦 Installation and Setup Options</h2>
+Recommended installation:
+```bash
+sudo apt install python3.11 python3.11-venv python3.11-dev python3-pip # poetry requires python >= 3.11
+```
 
-This project offers flexible setup options to accommodate different user environments. Depending on your current setup, you can choose from one of the following paths:
+We recommend [Poetry](https://python-poetry.org/docs/) for managing dependencies. You can also use a standard `pip install -e .` to install the dependencies.
 
-1) Using Existing VMs with a Kubernetes cluster:
-
-   You can clone the repository using the following command. We recommend `poetry` for managing dependencies. You can also use a standard `pip install -e .` to install the package.
-    
-    ```bash
-    $ git clone <CLONE_PATH_TO_THE_REPO>
-    $ cd AIOpsLab
-    $ pip install poetry
-    $ poetry install -vvv
-    $ poetry shell
-    ```
-
-    After entering the poetry virtual environment, setting Up AIOpsLab:
-
-    ```bash
-    $ cd scripts
-    $ ./setup.sh $(hostname) # or <YOUR_NODE_NAME>
-    ```
-
-2) Provisioning VMs and Kubernetes on cloud
-
-    Users can follow the instructions [here](/scripts/terraform/README.md), to create a two-node Kubernetes cluster on Azure. It can also be used as a starting point for creating more complex deployments, or deployments on other cloud. Then go to step 1 to set up the AIOpsLab's dependencies. 
-
-3) Self-managed Kubernetes cluster
-
-    You can also have a self-managed Kubernetes (k8s) cluster running as prerequisites. You can refer to [our k8s installation](/scripts/kube_install.sh), which installs k8s directly on the server (note that this is an installation example instead of an executable script; you may need to modify some parts to suit your case, e.g., node name and cert hash in the script). Then go to step 1 to set up the AIOpsLab's dependencies. 
-
+```bash
+git clone --recurse-submodules <CLONE_PATH_TO_THE_REPO>
+cd AIOpsLab
+poetry env use python3.11
+export PATH="$HOME/.local/bin:$PATH" # export poetry to PATH if needed
+poetry install # -vvv for verbose output
+poetry self add poetry-plugin-shell # installs poetry shell plugin
+poetry shell
+```
 
 <h2 id="🚀quickstart">🚀 Quick Start </h2>
 
+<!-- TODO: Add instructions for both local cluster and remote cluster -->
+Choose either a) or b) to set up your cluster and then proceed to the next steps.
+
+### a) Local simulated cluster
+AIOpsLab can be run on a local simulated cluster using [kind](https://kind.sigs.k8s.io/) on your local machine. Please look at this [README](kind/README.md#prerequisites) for a list of prerequisites.
+
+```bash
+# For x86 machines
+kind create cluster --config kind/kind-config-x86.yaml
+
+# For ARM machines
+kind create cluster --config kind/kind-config-arm.yaml
+```
+
+If you're running into issues, consider building a Docker image for your machine by following this [README](kind/README.md#deployment-steps). Please also open an issue.
+
+### [Tips]
+If you are running AIOpsLab using a proxy, beware of exporting the HTTP proxy as `172.17.0.1`. When creating the kind cluster, all the nodes in the cluster will inherit the proxy setting from the host environment and the Docker container. 
+
+The `172.17.0.1` address is used to communicate with the host machine. For more details, refer to the official guide: [Configure Kind to Use a Proxy](https://kind.sigs.k8s.io/docs/user/quick-start/#configure-kind-to-use-a-proxy).
+
+Additionally, Docker doesn't support SOCKS5 proxy directly. If you're using a SOCKS5 protocol to proxy, you may need to use [Privoxy](https://www.privoxy.org) to forward SOCKS5 to HTTP.
+
+If you're running VLLM and the LLM agent locally, Privoxy will by default proxy `localhost`, which will cause errors. To avoid this issue, you should set the following environment variable:
+
+```bash
+export no_proxy=localhost
+``` 
+
+After finishing cluster creation, proceed to the next "Update `config.yml`" step.
+
+### b) Remote cluster
+AIOpsLab supports any remote kubernetes cluster that your `kubectl` context is set to, whether it's a cluster from a cloud provider or one you build yourself. We have some Ansible playbooks to setup clusters on providers like [CloudLab](https://www.cloudlab.us/) and our own machines. Follow this [README](./scripts/ansible/README.md) to set up your own cluster, and then proceed to the next "Update `config.yml`" step.
+
+### Update `config.yml`
+```bash
+cd aiopslab
+cp config.yml.example config.yml
+```
+Update your `config.yml` so that `k8s_host` is the host name of the control plane node of your cluster. Update `k8s_user` to be your username on the control plane node. If you are using a kind cluster, your `k8s_host` should be `kind`. If you're running AIOpsLab on cluster, your `k8s_host` should be `localhost`.
+
+### Running agents locally
 Human as the agent:
 
 ```bash
-$ python3 cli.py
+python3 cli.py
 (aiopslab) $ start misconfig_app_hotel_res-detection-1 # or choose any problem you want to solve
 # ... wait for the setup ...
 (aiopslab) $ submit("Yes") # submit solution
@@ -71,11 +104,31 @@ $ python3 cli.py
 Run GPT-4 baseline agent:
 
 ```bash
-$ export OPENAI_API_KEY=<YOUR_OPENAI_API_KEY>
-$ python3 clients/gpt.py # you can also change the prolem to solve in the script
+# Create a .env file in the project root (if not exists)
+echo "OPENAI_API_KEY=<YOUR_OPENAI_API_KEY>" > .env
+# Add more API keys as needed:
+# echo "QWEN_API_KEY=<YOUR_QWEN_API_KEY>" >> .env
+# echo "DEEPSEEK_API_KEY=<YOUR_DEEPSEEK_API_KEY>" >> .env
+
+python3 clients/gpt.py # you can also change the problem to solve in the main() function
 ```
 
+Our repository comes with a variety of pre-integrated agents, including agents that enable **secure authentication with Azure OpenAI endpoints using identity-based access**. Please check out [Clients](/clients) for a comprehensive list of all implemented clients.
+
+The clients will automatically load API keys from your .env file.
+
 You can check the running status of the cluster using [k9s](https://k9scli.io/) or other cluster monitoring tools conveniently.
+
+To browse your logged `session_id` values in the W&B app as a table:
+
+1. Make sure you have W&B installed and configured.
+2. Set the USE_WANDB environment variable:
+    ```bash
+    # Add to your .env file
+    echo "USE_WANDB=true" >> .env
+    ```
+3. In the W&B web UI, open any run and click Tables → Add Query Panel.
+4. In the key field, type `runs.summary` and click `Run`, then you will see the results displayed in a table format.
 
 <h2 id="⚙️usage">⚙️ Usage</h2>
 
@@ -84,6 +137,52 @@ AIOpsLab can be used in the following ways:
 - [Add new applications to AIOpsLab](#how-to-add-new-applications-to-aiopslab)
 - [Add new problems to AIOpsLab](#how-to-add-new-problems-to-aiopslab)
 
+### Running agents remotely
+You can run AIOpsLab on a remote machine with larger computational resources. This section guides you through setting up and using AIOpsLab remotely.
+
+1. **On the remote machine, start the AIOpsLab service**:
+
+    ```bash
+    SERVICE_HOST=<YOUR_HOST> SERVICE_PORT=<YOUR_PORT> SERVICE_WORKERS=<YOUR_WORKERS> python service.py
+    ```
+2. **Test the connection from your local machine**:
+    In your local machine, you can test the connection to the remote AIOpsLab service using `curl`:
+
+    ```bash
+    # Check if the service is running
+    curl http://<YOUR_HOST>:<YOUR_PORT>/health
+    
+    # List available problems
+    curl http://<YOUR_HOST>:<YOUR_PORT>/problems
+    
+    # List available agents
+    curl http://<YOUR_HOST>:<YOUR_PORT>/agents
+    ```
+
+3. **Run vLLM on the remote machine (if using vLLM agent):**
+    If you're using the vLLM agent, make sure to launch the vLLM server on the remote machine:
+
+    ```bash
+    # On the remote machine
+    chmod +x ./clients/launch_vllm.sh
+    ./clients/launch_vllm.sh
+    ```
+    You can customize the model by editing `launch_vllm.sh` before running it.
+
+4. **Run the agent**:
+    In your local machine, you can run the agent using the following command:
+
+    ```bash
+    curl -X POST http://<YOUR_HOST>:<YOUR_PORT>/simulate \
+      -H "Content-Type: application/json" \
+      -d '{
+        "problem_id": "misconfig_app_hotel_res-mitigation-1",
+        "agent_name": "vllm",
+        "max_steps": 10,
+        "temperature": 0.7,
+        "top_p": 0.9
+      }'
+    ```
 
 ### How to onboard your agent to AIOpsLab?
 
@@ -351,17 +450,19 @@ See a full example of a problem [here](/aiopslab/orchestrator/problems/k8s_targe
 <h2 id="📄how-to-cite">📄 How to Cite</h2>
 
 ```bibtex
+@inproceedings{
+chen2025aiopslab,
+title={{AIO}psLab: A Holistic Framework to Evaluate {AI} Agents for Enabling Autonomous Clouds},
+author={Yinfang Chen and Manish Shetty and Gagan Somashekar and Minghua Ma and Yogesh Simmhan and Jonathan Mace and Chetan Bansal and Rujia Wang and Saravan Rajmohan},
+booktitle={Eighth Conference on Machine Learning and Systems},
+year={2025},
+url={https://openreview.net/forum?id=3EXBLwGxtq}
+}
 @inproceedings{shetty2024building,
   title = {Building AI Agents for Autonomous Clouds: Challenges and Design Principles},
   author = {Shetty, Manish and Chen, Yinfang and Somashekar, Gagan and Ma, Minghua and Simmhan, Yogesh and Zhang, Xuchao and Mace, Jonathan and Vandevoorde, Dax and Las-Casas, Pedro and Gupta, Shachee Mishra and Nath, Suman and Bansal, Chetan and Rajmohan, Saravan},
   year = {2024},
   booktitle = {Proceedings of 15th ACM Symposium on Cloud Computing},
-}
-@misc{chen2024aiopslab,
-  title = {AIOpsLab: A Holistic Framework to Evaluate AI Agents for Enabling Autonomous Clouds},
-  author = {Chen, Yinfang and Shetty, Manish and Somashekar, Gagan and Ma, Minghua and Simmhan, Yogesh and Mace, Jonathan and Bansal, Chetan and Wang, Rujia and Rajmohan, Saravan},
-  year = {2024},
-  url = {https://www.microsoft.com/en-us/research/publication/aiopslab-a-holistic-framework-for-evaluating-ai-agents-for-enabling-autonomous-cloud/}
 }
 ```
 

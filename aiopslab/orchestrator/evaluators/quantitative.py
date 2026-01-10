@@ -22,7 +22,7 @@ def out_tokens(trace: list[SessionItem]) -> int:
     # NOTE: not dollar value, since depends on Agent's model
 
     agent_steps = "".join([item.content for item in trace if item.role == "assistant"])
-    return len(tokenizer.encode(agent_steps))
+    return len(tokenizer.encode(agent_steps, disallowed_special=()))
 
 
 def in_tokens(trace: list[SessionItem]) -> int:
@@ -34,8 +34,16 @@ def in_tokens(trace: list[SessionItem]) -> int:
 
 
 def is_exact_match(pred: int | str | list, target: int | str | list) -> bool:
-    """Return True if the prediction is an exact match to the target."""
-    return pred == target
+    """Return True if the prediction is an exact match to the target.
+    Also considers ["x"] and "x" as equivalent.
+    """
+    # Normalize both sides to lists for consistent comparison
+    def normalize(value: int | str | list) -> list:
+        if isinstance(value, list):
+            return value
+        return [value]
+    
+    return normalize(pred) == normalize(target)
 
 
 def is_exact_match_lower(pred: str, target: str) -> bool:

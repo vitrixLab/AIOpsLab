@@ -4,15 +4,27 @@
 """Base class for task actions."""
 
 import os
+import pandas as pd
 from datetime import datetime, timedelta
 from aiopslab.utils.actions import action, read, write
 from aiopslab.service.kubectl import KubeCtl
+from aiopslab.service.dock import Docker
 from aiopslab.service.shell import Shell
 
 # from aiopslab.observer import initialize_pod_and_service_lists
 from aiopslab.observer.metric_api import PrometheusAPI
 from aiopslab.observer.trace_api import TraceAPI
 
+from aiopslab.orchestrator.actions.log_deduplication import greedy_compress_lines 
+
+import re
+
+LOG_COMMAND_PATTERN: str = (
+    r"\b(?:"
+    r"kubectl\s+(?:logs|get\s+events|describe|get\s+\S+\s+-w)"  # logs/events/describe/watch
+    r"|docker\s+(?:logs|events)"                               # docker logs/events
+    r")\b(?:[^\n]*)"
+)
 
 class TaskActions:
     """Base class for task actions."""
@@ -21,7 +33,7 @@ class TaskActions:
     @read
     def get_logs(namespace: str, service: str) -> str:
         """
-        Collects relevant log data from a pod using Kubectl.
+        Collects relevant log data from a pod using Kubectl or from a container with Docker.
 
         Args:
             namespace (str): The namespace in which the service is running.
@@ -30,27 +42,42 @@ class TaskActions:
         Returns:
             str | dict | list[dicts]: Log data as a structured object or a string.
         """
-        kubectl = KubeCtl()
-        try:
-            if namespace == "test-social-network":
-                user_service_pod = kubectl.get_pod_name(namespace, f"app={service}")
-            elif namespace == "test-hotel-reservation":
-                user_service_pod = kubectl.get_pod_name(
-                    namespace, f"io.kompose.service={service}"
-                )
-            else:
-                raise Exception
-            logs = kubectl.get_pod_logs(user_service_pod, namespace)
-        except Exception as e:
-            return "Error: Your service/namespace does not exist. Use kubectl to check."
+        if namespace == "docker":
+            docker = Docker()
+            try:
+                logs = docker.get_logs(service)
+            except Exception as e:
+                return "Error: Your service does not exist. Use docker to check."
+        
+        else:
+            kubectl = KubeCtl()
+            try:
+                if namespace == "test-social-network":
+                    user_service_pod = kubectl.get_pod_name(namespace, f"app={service}")
+                elif namespace == "test-hotel-reservation":
+                    user_service_pod = kubectl.get_pod_name(
+                        namespace, f"io.kompose.service={service}"
+                    )
+                elif namespace == "astronomy-shop":
+                    user_service_pod = kubectl.get_pod_name(
+                        namespace, f"app.kubernetes.io/name={service}"
+                    )
+                elif namespace == "default" and "wrk2-job" in service:
+                    user_service_pod = kubectl.get_pod_name(namespace, f"job-name=wrk2-job")
+                else:
+                        raise Exception
+                logs = kubectl.get_pod_logs(user_service_pod, namespace)
+            except Exception as e:
+                return "Error: Your service/namespace does not exist. Use kubectl to check."
 
-        logs = "\n".join(logs.split("\n")[:10])
+        logs = greedy_compress_lines(logs) 
+        print(logs)
 
         return logs
 
     @staticmethod
     @action
-    def exec_shell(command: str) -> str:
+    def exec_shell(command: str, timeout: int = 30) -> str:
         """
         Execute any shell command in a predefined debugging environment.
         Note: this is NOT A STATEFUL OR INTERACTIVE shell session. So you cannot
@@ -58,14 +85,30 @@ class TaskActions:
 
         Args:
             command (str): The command to execute.
+            timeout (int): Timeout in seconds for the command execution. Default is 30.
 
         Returns:
             str: The output of the command.
         """
-        if "kubectl edit" in command or "edit svc" in command:
-            return "Error: Cannot use `kubectl edit`. Use `kubectl patch` instead."
+        BLOCK_LIST: dict[str, str] = {
+            "kubectl edit": "Error: Cannot use `kubectl edit`. Use `kubectl patch` instead.",
+            "edit svc": "Error: Cannot use `kubectl edit`. Use `kubectl patch` instead.",
+            "kubectl port-forward": "Error: Cannot use `kubectl port-forward` because it is an interactive command.",
+            "docker logs -f": "Error: Cannot use `docker logs -f`. Use `docker logs` instead.",
+            "kubectl logs -f": "Error: Cannot use `kubectl logs -f`. Use `kubectl logs` instead.",
+        }
+        for pattern, error in BLOCK_LIST.items():
+            if pattern in command:
+                return error
 
-        return Shell.exec(command)
+        result = Shell.exec(command) 
+
+        if re.search(LOG_COMMAND_PATTERN, command):
+            result = greedy_compress_lines(result)
+
+        print(result)
+
+        return result
 
     @staticmethod
     @read
@@ -96,6 +139,29 @@ class TaskActions:
         )
 
         return save_dir_str
+    
+    @staticmethod
+    @read
+    def read_metrics(file_path: str) -> str:
+        """
+        Reads and returns metrics from a specified CSV file.
+
+        Args:
+            file_path (str): Path to the metrics file (CSV format).
+
+        Returns:
+            str: The requested metrics or an error message.
+        """
+        if not os.path.exists(file_path):
+            return f"error: Metrics file '{file_path}' not found."
+
+        try:
+            df_metrics = pd.read_csv(file_path)
+
+            return df_metrics.to_string(index=False)
+
+        except Exception as e:
+            return f"Failed to read metrics: {str(e)}"
 
     @staticmethod
     @read
@@ -123,6 +189,29 @@ class TaskActions:
 
         return trace_api.save_traces(df_traces, save_path)
         # return f"Trace data exported to: {save_path}"
+
+    @staticmethod
+    @read
+    def read_traces(file_path: str) -> str:
+        """
+        Reads and returns traces from a specified CSV file.
+
+        Args:
+            file_path (str): Path to the traces file (CSV format).
+
+        Returns:
+            str: The requested traces or an error message.
+        """
+        if not os.path.exists(file_path):
+            return f"error: Traces file '{file_path}' not found."
+
+        try:
+            df_traces = pd.read_csv(file_path)
+
+            return df_traces.to_string(index=False)
+
+        except Exception as e:
+            return f"Failed to read traces: {str(e)}"
 
     @staticmethod
     # @read
@@ -188,3 +277,4 @@ class TaskActions:
         # except requests.RequestException as e:
         #     print(f"An error occurred: {e}")
         #     return []
+

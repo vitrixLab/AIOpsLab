@@ -12,9 +12,18 @@ from kubernetes.client.rest import ApiException
 
 
 class KubeCtl:
+
     def __init__(self):
+
         """Initialize the KubeCtl object and load the Kubernetes configuration."""
-        config.load_kube_config()
+
+        import os
+        
+        # Support parallel execution via AIOPSLAB_CLUSTER environment variable
+        cluster_env = os.environ.get('AIOPSLAB_CLUSTER', 'kind')
+        context = f"kind-{cluster_env}"
+        config.load_kube_config(context=context)
+        
         self.core_v1_api = client.CoreV1Api()
         self.apps_v1_api = client.AppsV1Api()
 
@@ -34,6 +43,16 @@ class KubeCtl:
         """Retrieve the cluster IP address of a specified service within a namespace."""
         service_info = self.core_v1_api.read_namespaced_service(service_name, namespace)
         return service_info.spec.cluster_ip  # type: ignore
+    
+    def get_container_runtime(self):
+        """
+            Retrieve the container runtime used by the cluster.
+            If the cluster uses multiple container runtimes, the first one found will be returned.
+        """
+        for node in self.core_v1_api.list_node().items:
+            for status in node.status.conditions:
+                if status.type == "Ready" and status.status == "True":
+                    return node.status.node_info.container_runtime_version
 
     def get_pod_name(self, namespace, label_selector):
         """Get the name of the first pod in a namespace that matches a given label selector."""
@@ -57,20 +76,58 @@ class KubeCtl:
         """Fetch the deployment configuration."""
         return self.apps_v1_api.read_namespaced_deployment(name, namespace)
 
-    def wait_for_state(self, namespace, state, sleep=10, max_wait=300):
-        """Wait for all pods in a namespace to reach a specified state, with a timeout."""
-        wait = 0
+    def wait_for_ready(self, namespace, sleep=2, max_wait=300):
+        """Wait for all pods in a namespace to be in a Ready state before proceeding."""
+
         console = Console()
-        with console.status("[bold green]Working on deployments...") as status:
+        console.log(f"[bold green]Waiting for all pods in namespace '{namespace}' to be ready...")
+
+        with console.status("[bold green]Waiting for pods to be ready...") as status:
+            wait = 0
+
             while wait < max_wait:
-                pod_list = self.list_pods(namespace)
-                if all(pod.status.phase == state for pod in pod_list.items):
-                    break
+                try:
+                    pod_list = self.list_pods(namespace)
+                    
+                    if pod_list.items:
+                        ready_pods = [
+                            pod for pod in pod_list.items
+                            if pod.status.container_statuses and
+                            all(cs.ready for cs in pod.status.container_statuses)
+                        ]
+
+                        if len(ready_pods) == len(pod_list.items):
+                            console.log(f"[bold green]All pods in namespace '{namespace}' are ready.")
+                            return
+
+                except Exception as e:
+                    console.log(f"[red]Error checking pod statuses: {e}")
 
                 time.sleep(sleep)
                 wait += sleep
-            else:
-                raise Exception(f"App didn't reach the expected state: {state}")
+
+            raise Exception(f"[red]Timeout: Not all pods in namespace '{namespace}' reached the Ready state within {max_wait} seconds.")
+    
+    def wait_for_namespace_deletion(self, namespace, sleep=2, max_wait=300):
+        """Wait for a namespace to be fully deleted before proceeding."""
+
+        console = Console()
+        console.log(f"[bold green]Waiting for namespace '{namespace}' to be deleted...")
+
+        with console.status("[bold green]Waiting for namespace deletion...") as status:
+            wait = 0
+
+            while wait < max_wait:
+                try:
+                    self.core_v1_api.read_namespace(name=namespace)
+                except Exception as e:
+                    console.log(f"[bold green]Namespace '{namespace}' has been deleted.")
+                    return
+
+                time.sleep(sleep)
+                wait += sleep
+
+            raise Exception(f"[red]Timeout: Namespace '{namespace}' was not deleted within {max_wait} seconds.")
 
     def update_deployment(self, name: str, namespace: str, deployment):
         """Update the deployment configuration."""
@@ -182,6 +239,7 @@ class KubeCtl:
         """Delete a specified namespace."""
         try:
             self.core_v1_api.delete_namespace(name=namespace)
+            self.wait_for_namespace_deletion(namespace)
             print(f"Namespace '{namespace}' deleted successfully.")
         except ApiException as e:
             if e.status == 404:
@@ -190,17 +248,14 @@ class KubeCtl:
                 print(f"Error deleting namespace '{namespace}': {e}")
 
     def create_namespace_if_not_exist(self, namespace: str):
-        """Create a namespace if it doesn't exist.
-        """
+        """Create a namespace if it doesn't exist."""
         try:
             self.core_v1_api.read_namespace(name=namespace)
             print(f"Namespace '{namespace}' already exists.")
         except ApiException as e:
             if e.status == 404:
                 print(f"Namespace '{namespace}' not found. Creating namespace.")
-                body = client.V1Namespace(
-                    metadata=client.V1ObjectMeta(name=namespace)
-                )
+                body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
                 self.core_v1_api.create_namespace(body=body)
                 print(f"Namespace '{namespace}' created successfully.")
             else:
@@ -223,6 +278,17 @@ class KubeCtl:
         # else:
         #     return out.stdout.decode("utf-8")
 
+    def get_node_architectures(self):
+        """Return a set of CPU architectures from all nodes in the cluster."""
+        architectures = set()
+        try:
+            nodes = self.core_v1_api.list_node()
+            for node in nodes.items:
+                arch = node.status.node_info.architecture
+                architectures.add(arch)
+        except ApiException as e:
+            print(f"Exception when retrieving node architectures: {e}\n")
+        return architectures
 
 # Example usage:
 if __name__ == "__main__":

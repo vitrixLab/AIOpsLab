@@ -3,8 +3,6 @@
 
 """Interface to the social network application from DeathStarBench"""
 
-import time
-
 from aiopslab.service.helm import Helm
 from aiopslab.service.kubectl import KubeCtl
 from aiopslab.service.apps.base import Application
@@ -13,7 +11,6 @@ from aiopslab.paths import SOCIAL_NETWORK_METADATA
 
 
 class SocialNetwork(Application):
-
     def __init__(self):
         super().__init__(SOCIAL_NETWORK_METADATA)
         self.load_app_json()
@@ -46,10 +43,24 @@ class SocialNetwork(Application):
             print("TLS secret already exists. Skipping creation.")
 
     def deploy(self):
-        """Deploy the Helm configurations."""
+        """Deploy the Helm configurations with architecture-aware image selection."""
+        node_architectures = self.kubectl.get_node_architectures()
+        is_arm = any(arch in ["arm64", "aarch64"] for arch in node_architectures)
+
+        if is_arm:
+            # Use the ARM-compatible image for media-frontend
+            if "extra_args" not in self.helm_configs:
+                self.helm_configs["extra_args"] = []
+
+            self.helm_configs["extra_args"].append(
+                "--set media-frontend.container.image=jacksonarthurclark/media-frontend"
+            )
+            self.helm_configs["extra_args"].append(
+                "--set media-frontend.container.imageVersion=latest"
+            )
+
         Helm.install(**self.helm_configs)
         Helm.assert_if_deployed(self.helm_configs["namespace"])
-        time.sleep(30)
 
     def delete(self):
         """Delete the Helm configurations."""

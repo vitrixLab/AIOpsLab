@@ -4,7 +4,6 @@
 """Interface for helm operations"""
 
 import subprocess
-import time
 
 from aiopslab.service.kubectl import KubeCtl
 
@@ -18,19 +17,37 @@ class Helm:
             release_name (str): Name of the release
             chart_path (str): Path to the helm chart
             namespace (str): Namespace to install the chart
+            version (str): Version of the chart
+            extra_args (List[str)]: Extra arguments for the helm install command
+            remote_chart (bool): Whether the chart is remote (from a Helm repo)
         """
         print("== Helm Install ==")
         release_name = args.get("release_name")
         chart_path = args.get("chart_path")
         namespace = args.get("namespace")
         version = args.get("version")
+        extra_args = args.get("extra_args")
+        remote_chart = args.get("remote_chart", False)
+
+        if not remote_chart:
+            # Install dependencies for chart before installation
+            dependency_command = f"helm dependency update {chart_path}"
+            dependency_process = subprocess.Popen(
+                dependency_command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            dependency_output, dependency_error = dependency_process.communicate()
+
+        command = f"helm install {release_name} {chart_path} -n {namespace} --create-namespace"
 
         if version:
-            command = f"helm install {release_name} {chart_path} -n {namespace} --version {version}"
-        else:
-            command = f"helm install {release_name} {chart_path} -n {namespace}"
+            command += f" --version {version}"
 
-        command = f"helm install {release_name} {chart_path} -n {namespace}"
+        if extra_args:
+            command += " " + " ".join(extra_args)
+
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
         output, error = process.communicate()
 
@@ -100,7 +117,7 @@ class Helm:
         """
         kubectl = KubeCtl()
         try:
-            kubectl.wait_for_state(namespace, "Running")
+            kubectl.wait_for_ready(namespace)
         except Exception as e:
             raise e
 
@@ -162,13 +179,46 @@ class Helm:
         """
         print(f"== Helm Repo Add: {name} ==")
         command = f"helm repo add {name} {url}"
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         output, error = process.communicate()
 
         if error:
             print(f"Error adding helm repo {name}: {error.decode('utf-8')}")
         else:
             print(f"Helm repo {name} added successfully: {output.decode('utf-8')}")
+
+    @staticmethod
+    def status(release_name: str, namespace: str) -> str:
+        """Get the status of a Helm release.
+        
+        Args:
+            release_name (str): Name of the release.
+            namespace (str): Namespace of the release.
+        
+        Returns:
+            str: Status output from Helm.
+        
+        Raises:
+            ValueError: If either parameter is missing.
+            Exception: If the helm status command fails.
+        """
+
+        if not release_name or not namespace:
+            raise ValueError("Both release_name and namespace must be provided")
+
+        command = f"helm status {release_name} -n {namespace}"
+        process = subprocess.Popen(
+            command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        output, error = process.communicate()
+
+        if process.returncode != 0:
+            # helm status failed
+            raise RuntimeError(f"Failed to get status for release {release_name}: {error.decode('utf-8')}")
+
+        return output.decode("utf-8").strip()
 
 # Example usage
 if __name__ == "__main__":

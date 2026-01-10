@@ -10,7 +10,7 @@ from aiopslab.orchestrator.evaluators.quantitative import is_exact_match, is_sub
 from aiopslab.service.kubectl import KubeCtl
 from aiopslab.service.apps.socialnet import SocialNetwork
 from aiopslab.generators.workload.wrk import Wrk
-from aiopslab.generators.fault.inject_virtual import VirtualizationFaultInjector
+from aiopslab.generators.fault.inject_app import ApplicationFaultInjector
 from aiopslab.session import SessionItem
 from aiopslab.paths import TARGET_MICROSERVICES
 
@@ -40,7 +40,7 @@ class MongoDBAuthMissingBaseTask:
 
     def inject_fault(self):
         print("== Fault Injection ==")
-        injector = VirtualizationFaultInjector(namespace=self.namespace)
+        injector = ApplicationFaultInjector(namespace=self.namespace)
         injector._inject(
             fault_type="auth_miss_mongodb",
             microservices=[self.faulty_service],
@@ -49,10 +49,10 @@ class MongoDBAuthMissingBaseTask:
 
     def recover_fault(self):
         print("== Fault Recovery ==")
-        injector = VirtualizationFaultInjector(namespace=self.namespace)
+        injector = ApplicationFaultInjector(namespace=self.namespace)
         injector._recover(
             fault_type="auth_miss_mongodb",
-            microservices=[self.faulty_service], 
+            microservices=[self.faulty_service],
         )
         print(f"Service: {self.faulty_service} | Namespace: {self.namespace}\n")
 
@@ -86,7 +86,6 @@ class MongoDBAuthMissingLocalization(MongoDBAuthMissingBaseTask, LocalizationTas
     def __init__(self):
         MongoDBAuthMissingBaseTask.__init__(self)
         LocalizationTask.__init__(self, self.app)
-        self.task_desc += "Start by investigating the `compose-post-service` pod"
 
     def eval(self, soln: Any, trace: list[SessionItem], duration: float):
         print("== Evaluation ==")
@@ -128,7 +127,6 @@ class MongoDBAuthMissingAnalysis(MongoDBAuthMissingBaseTask, AnalysisTask):
     def __init__(self):
         MongoDBAuthMissingBaseTask.__init__(self)
         AnalysisTask.__init__(self, self.app)
-        self.task_desc += "Start by investigating the `compose-post-service` pod"
 
     def eval(self, soln: Any, trace: list[SessionItem], duration: float):
         print("== Evaluation ==")
@@ -136,7 +134,7 @@ class MongoDBAuthMissingAnalysis(MongoDBAuthMissingBaseTask, AnalysisTask):
         # Ensure soln is a dictionary
         if isinstance(soln, dict):
             # Expected solution
-            expected_system_level = "Virtualization"
+            expected_system_level = "Application"
             expected_fault_type = "Misconfiguration"
 
             provided_system_level = soln.get("system_level", "").strip().lower()
@@ -169,7 +167,6 @@ class MongoDBAuthMissingMitigation(MongoDBAuthMissingBaseTask, MitigationTask):
     def __init__(self):
         MongoDBAuthMissingBaseTask.__init__(self)
         MitigationTask.__init__(self, self.app)
-        self.task_desc += "Start by investigating the `compose-post-service` pod"
 
     # TODO: this migigate eval should be a bit different.
     # The error will not be on the container/pod level but the app level,

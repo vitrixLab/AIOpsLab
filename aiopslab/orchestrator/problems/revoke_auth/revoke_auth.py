@@ -52,10 +52,7 @@ class MongoDBRevokeAuthBaseTask:
     def recover_fault(self):
         print("== Fault Recovery ==")
         injector = ApplicationFaultInjector(namespace=self.namespace)
-        injector._recover(
-            fault_type="revoke_auth", 
-            microservices=[self.faulty_service]
-        )
+        injector._recover(fault_type="revoke_auth", microservices=[self.faulty_service])
         print(f"Service: {self.faulty_service} | Namespace: {self.namespace}\n")
 
 
@@ -101,8 +98,9 @@ class MongoDBRevokeAuthLocalization(MongoDBRevokeAuthBaseTask, LocalizationTask)
             return self.results
 
         # Calculate exact match and subset
-        is_exact = is_exact_match(soln, self.faulty_service)
-        is_sub = is_subset([self.faulty_service], soln)
+        is_exact = is_exact_match(soln, self.faulty_service) or is_exact_match(soln, self.faulty_service.removeprefix("mongodb-")) # Given that monogodb-geo and geo are closely coupled
+                                                                                                                                   # (likewise with rate), either pod should be an answer
+        is_sub = is_subset([self.faulty_service], soln) or is_subset([self.faulty_service.removeprefix("mongodb-")], soln)
 
         # Determine accuracy
         if is_exact:
