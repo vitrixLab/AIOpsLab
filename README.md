@@ -13,8 +13,7 @@
 [![ArXiv Link](https://img.shields.io/badge/arXiv-2407.12165-red?logo=arxiv)](https://arxiv.org/pdf/2407.12165)
 </div>
 
-## **Review of “AIOpsLab: A Holistic Framework to Evaluate AI Agents for Enabling Autonomous Clouds”**
-by: VitrixLab
+## **Review of “AIOpsLab: A Holistic Framework to Evaluate AI Agents for Enabling Autonomous Clouds” by: [Peper Cruz - orcid.org#: 0009-0001-4034-0056](https://orcid.org/0009-0001-4034-0056)**
 
 **Summary:**  
 This paper proposes *AIOpsLab*, a comprehensive evaluation framework for AI agents in cloud operations. It integrates deployment orchestration, fault injection, workload generation, telemetry collection, and task evaluation to benchmark agent capabilities across realistic AIOps scenarios.
