@@ -473,7 +473,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 
 ## License
 
-Copyright (c) Microsoft Corporation. All rights reserved.
+Copyright (c) Microsoft Corporation, , VitrixLab, VitrixLab Internship Initiative Program and Jason "Soo Ji" Dano | "Peper Cruz" Et.al. All rights reserved.
 
 Licensed under the [MIT](LICENSE.txt) license.
 
