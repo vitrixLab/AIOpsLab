@@ -1,61 +1,49 @@
-const express = require("express");
+const express = require('express');
+const cors = require('cors');
+
 const app = express();
-
-app.use(express.json());
-
 const PORT = process.env.PORT || 8080;
 
-// In-memory store (MVP only)
-const reservations = [];
+app.use(cors()); // Allow all origins for Codespaces MVP
+app.use(express.json());
 
-/**
- * Health check
- * Required for Kubernetes readiness/liveness probes
- */
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
+let reservations = [];
+let nextId = 1;
+
+// Health endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
 });
 
-/**
- * List reservations
- */
-app.get("/reservations", (req, res) => {
-  res.json({
-    count: reservations.length,
-    data: reservations
-  });
+// Get reservations
+app.get('/reservations', (req, res) => {
+  res.json({ data: reservations });
 });
 
-/**
- * Create a reservation
- */
-app.post("/reservations", (req, res) => {
+// Add reservation
+app.post('/reservations', (req, res) => {
   const { guestName, roomNumber, fromDate, toDate } = req.body;
-
   if (!guestName || !roomNumber || !fromDate || !toDate) {
-    return res.status(400).json({
-      error: "Missing required fields"
-    });
+    return res.status(400).json({ error: 'All fields are required' });
   }
 
-  const reservation = {
-    id: reservations.length + 1,
+  const newRes = {
+    id: nextId++,
     guestName,
     roomNumber,
     fromDate,
-    toDate,
-    createdAt: new Date().toISOString()
+    toDate
   };
 
-  reservations.push(reservation);
-
-  res.status(201).json(reservation);
+  reservations.push(newRes);
+  res.json(newRes);
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Hotel Reservation App running on port ${PORT}`);
+  console.log(`Backend running at http://localhost:${PORT}`);
 });
