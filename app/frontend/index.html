@@ -1,0 +1,2465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hotel Reservation Dashboard v1.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* ===== CSS Variables for Theming ===== */
+    :root {
+      /* Light Theme (SAP Fiori Light) */
+      --sap-background-color: #f7f7f7;
+      --sap-surface-color: #ffffff;
+      --sap-surface-border-color: #d9d9d9;
+      --sap-primary-color: #0a6ed1;
+      --sap-primary-hover-color: #0854a0;
+      --sap-primary-active-color: #074885;
+      --sap-text-color: #32363a;
+      --sap-text-secondary-color: #6a6d70;
+      --sap-accent-color: #e9730c;
+      --sap-positive-color: #107e3e;
+      --sap-negative-color: #bb0000;
+      --sap-critical-color: #e7650a;
+      --sap-neutral-color: #6a6d70;
+      --sap-shadow-color: rgba(0, 0, 0, 0.1);
+      --sap-tile-background: #ffffff;
+      --sap-header-background: #ffffff;
+      --sap-sidebar-background: #354a5f;
+      --sap-sidebar-text-color: #ffffff;
+      --sap-sidebar-hover-color: #2c3e50;
+      --sap-font-family: "72", "72full", Arial, Helvetica, sans-serif;
+      --border-radius: 8px;
+    }
+
+    [data-theme="dark"] {
+      /* Dark Theme (SAP Fiori Dark) */
+      --sap-background-color: #12171c;
+      --sap-surface-color: #1d232a;
+      --sap-surface-border-color: #344457;
+      --sap-primary-color: #4390e8;
+      --sap-primary-hover-color: #62a5f1;
+      --sap-primary-active-color: #8bc1ff;
+      --sap-text-color: #f5f6f7;
+      --sap-text-secondary-color: #a9b4be;
+      --sap-accent-color: #ff8d33;
+      --sap-positive-color: #4caf50;
+      --sap-negative-color: #ff5c77;
+      --sap-critical-color: #ff8d33;
+      --sap-neutral-color: #a9b4be;
+      --sap-shadow-color: rgba(0, 0, 0, 0.3);
+      --sap-tile-background: #232a31;
+      --sap-header-background: #232a31;
+      --sap-sidebar-background: #1c2228;
+      --sap-sidebar-text-color: #e0e0e0;
+      --sap-sidebar-hover-color: #2a343f;
+    }
+
+    /* ===== Global Reset ===== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--sap-font-family);
+      background-color: var(--sap-background-color);
+      color: var(--sap-text-color);
+      transition: background-color 0.3s, color 0.3s;
+      height: 100vh;
+      overflow-x: hidden;
+      font-size: 16px;
+    }
+
+    body.compact-mode {
+      font-size: 14px;
+    }
+
+    body.compact-mode .card {
+      padding: 0.5rem;
+    }
+
+    body.compact-mode .nav-item {
+      padding: 0.5rem;
+    }
+
+    /* ===== Layout ===== */
+    .dashboard-container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+      width: 250px;
+      background-color: var(--sap-sidebar-background);
+      color: var(--sap-sidebar-text-color);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.3s;
+      flex-shrink: 0;
+    }
+
+    .sidebar.collapsed {
+      width: 60px;
+    }
+
+    .sidebar-header {
+      padding: 1.25rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-header h2 {
+      color: var(--sap-sidebar-text-color);
+      font-size: 1.25rem;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .sidebar.collapsed .sidebar-header h2 {
+      display: none;
+    }
+
+    .collapse-toggle {
+      background: none;
+      border: none;
+      color: var(--sap-sidebar-text-color);
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 1rem 0;
+      flex-grow: 1;
+    }
+
+    .nav-item {
+      padding: 0.75rem 1rem;
+      margin: 0.25rem 0.5rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      white-space: nowrap;
+    }
+
+    .nav-item:hover {
+      background-color: var(--sap-sidebar-hover-color);
+    }
+
+    .nav-item.active {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-icon {
+      margin-right: 0.75rem;
+      font-size: 1.1rem;
+      width: 24px;
+      text-align: center;
+    }
+
+    .sidebar.collapsed .nav-text {
+      display: none;
+    }
+
+    .sidebar-footer {
+      padding: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ===== Main Content Area ===== */
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      background-color: var(--sap-header-background);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px var(--sap-shadow-color);
+      z-index: 10;
+    }
+
+    .header-title h1 {
+      font-size: 1.75rem;
+      color: var(--sap-text-color);
+      font-weight: 600;
+    }
+
+    .header-title p {
+      color: var(--sap-text-secondary-color);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .notification-badge {
+      position: relative;
+      background: none;
+      border: none;
+      color: var(--sap-text-color);
+      font-size: 1.25rem;
+      cursor: pointer;
+    }
+
+    .badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background-color: var(--sap-negative-color);
+      color: white;
+      font-size: 0.7rem;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .settings-toggle {
+      background: none;
+      border: none;
+      color: var(--sap-text-color);
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .settings-toggle:hover {
+      transform: rotate(30deg);
+    }
+
+    /* ===== Content Area ===== */
+    .content-area {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    /* ===== Dashboard Grid ===== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ===== Cards/Tiles ===== */
+    .card {
+      background-color: var(--sap-surface-color);
+      border-radius: var(--border-radius);
+      box-shadow: 0 2px 4px var(--sap-shadow-color);
+      border: 1px solid var(--sap-surface-border-color);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--sap-surface-border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-header h3 {
+      font-size: 1.125rem;
+      color: var(--sap-text-color);
+      font-weight: 600;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .card-action-btn {
+      background: none;
+      border: none;
+      color: var(--sap-text-secondary-color);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .card-body {
+      padding: 1.25rem;
+    }
+
+    /* ===== Health Status Card ===== */
+    .health-status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .health-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .health-indicator.healthy {
+      background-color: var(--sap-positive-color);
+    }
+
+    .health-indicator.warning {
+      background-color: var(--sap-critical-color);
+    }
+
+    .health-indicator.error {
+      background-color: var(--sap-negative-color);
+    }
+
+    .health-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .metric {
+      text-align: center;
+      padding: 0.75rem;
+      border-radius: 6px;
+      background-color: rgba(10, 110, 209, 0.08);
+      border: 1px solid rgba(10, 110, 209, 0.2);
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--sap-primary-color);
+    }
+
+    .metric-label {
+      font-size: 0.875rem;
+      color: var(--sap-text-secondary-color);
+      margin-top: 0.25rem;
+    }
+
+    /* ===== Reservations Table ===== */
+    .reservations-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .reservations-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: var(--sap-text-secondary-color);
+      border-bottom: 1px solid var(--sap-surface-border-color);
+    }
+
+    .reservations-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--sap-surface-border-color);
+    }
+
+    .reservations-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .reservations-table tr:hover {
+      background-color: rgba(10, 110, 209, 0.04);
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .status-confirmed {
+      background-color: rgba(16, 126, 62, 0.1);
+      color: var(--sap-positive-color);
+    }
+
+    .status-pending {
+      background-color: rgba(233, 115, 12, 0.1);
+      color: var(--sap-accent-color);
+    }
+
+    .status-checked-in {
+      background-color: rgba(10, 110, 209, 0.1);
+      color: var(--sap-primary-color);
+    }
+
+    .status-checked-out {
+      background-color: rgba(106, 109, 112, 0.1);
+      color: var(--sap-neutral-color);
+    }
+
+    /* ===== Form Styles ===== */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 0.875rem;
+      color: var(--sap-text-secondary-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .form-group input, .form-group select {
+      padding: 0.625rem;
+      border-radius: 4px;
+      border: 1px solid var(--sap-surface-border-color);
+      background-color: var(--sap-surface-color);
+      color: var(--sap-text-color);
+      font-family: var(--sap-font-family);
+      font-size: 0.95rem;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--sap-primary-color);
+      box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.2);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.625rem 1.25rem;
+      border-radius: 4px;
+      font-family: var(--sap-font-family);
+      font-size: 0.95rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+      background-color: var(--sap-primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--sap-primary-hover-color);
+    }
+
+    .btn-primary:active {
+      background-color: var(--sap-primary-active-color);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--sap-primary-color);
+      border: 1px solid var(--sap-primary-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(10, 110, 209, 0.08);
+    }
+
+    /* ===== Settings Panel ===== */
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 380px;
+      height: 100vh;
+      background-color: var(--sap-surface-color);
+      box-shadow: -4px 0 12px var(--sap-shadow-color);
+      z-index: 1000;
+      transition: right 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-panel.open {
+      right: 0;
+    }
+
+    .settings-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--sap-surface-border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .settings-header h3 {
+      font-size: 1.25rem;
+      color: var(--sap-text-color);
+    }
+
+    .close-settings {
+      background: none;
+      border: none;
+      color: var(--sap-text-secondary-color);
+      font-size: 1.25rem;
+      cursor: pointer;
+    }
+
+    .settings-content {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    .settings-section {
+      margin-bottom: 2rem;
+    }
+
+    .settings-section h4 {
+      font-size: 1rem;
+      color: var(--sap-text-color);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--sap-surface-border-color);
+    }
+
+    .theme-selector {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .theme-option {
+      flex: 1;
+      padding: 1rem;
+      border-radius: 6px;
+      border: 2px solid var(--sap-surface-border-color);
+      background-color: var(--sap-surface-color);
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+
+    .theme-option:hover {
+      border-color: var(--sap-primary-color);
+    }
+
+    .theme-option.active {
+      border-color: var(--sap-primary-color);
+      background-color: rgba(10, 110, 209, 0.08);
+    }
+
+    .theme-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .slider-container label {
+      min-width: 120px;
+    }
+
+    .slider {
+      flex-grow: 1;
+      height: 6px;
+      border-radius: 3px;
+      background-color: var(--sap-surface-border-color);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: var(--sap-primary-color);
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-switch {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--sap-surface-border-color);
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider-switch:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider-switch {
+      background-color: var(--sap-primary-color);
+    }
+
+    input:checked + .slider-switch:before {
+      transform: translateX(26px);
+    }
+
+    /* ===== Footer ===== */
+    .footer {
+      padding: 1rem 1.5rem;
+      text-align: center;
+      color: var(--sap-text-secondary-color);
+      font-size: 0.875rem;
+      border-top: 1px solid var(--sap-surface-border-color);
+      background-color: var(--sap-surface-color);
+    }
+
+    /* ===== Toast Notifications ===== */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 350px;
+    }
+
+    .toast {
+      background: var(--sap-surface-color);
+      border: 1px solid var(--sap-surface-border-color);
+      border-radius: 6px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .toast-success {
+      border-left: 4px solid var(--sap-positive-color);
+    }
+
+    .toast-error {
+      border-left: 4px solid var(--sap-negative-color);
+    }
+
+    .toast-warning {
+      border-left: 4px solid var(--sap-critical-color);
+    }
+
+    .toast-info {
+      border-left: 4px solid var(--sap-primary-color);
+    }
+
+    .toast-icon {
+      font-size: 1.2rem;
+    }
+
+    .toast-success .toast-icon {
+      color: var(--sap-positive-color);
+    }
+
+    .toast-error .toast-icon {
+      color: var(--sap-negative-color);
+    }
+
+    .toast-warning .toast-icon {
+      color: var(--sap-critical-color);
+    }
+
+    .toast-info .toast-icon {
+      color: var(--sap-primary-color);
+    }
+
+    .toast-content {
+      flex-grow: 1;
+      font-size: 0.9rem;
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--sap-text-secondary-color);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 4px;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* ===== Modal ===== */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: var(--sap-surface-color);
+      margin: 5% auto;
+      padding: 0;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--sap-surface-border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: var(--sap-text-color);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--sap-text-secondary-color);
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    /* ===== Filter Controls ===== */
+    .filter-controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 1024px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .sidebar {
+        width: 60px;
+      }
+      
+      .sidebar-header h2, .nav-text {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .settings-panel {
+        width: 100%;
+        right: -100%;
+      }
+      
+      .header-title h1 {
+        font-size: 1.5rem;
+      }
+      
+      .header-actions {
+        gap: 0.75rem;
+      }
+      
+      .content-area {
+        padding: 1rem;
+      }
+      
+      .toast-container {
+        left: 20px;
+        right: 20px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>HotelRes Pro</h2>
+        <button class="collapse-toggle" id="collapseToggle">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+      
+      <ul class="nav-menu">
+        <li class="nav-item active" data-section="dashboard">
+          <i class="fas fa-tachometer-alt nav-icon"></i>
+          <span class="nav-text">Dashboard</span>
+        </li>
+        <li class="nav-item" data-section="reservations">
+          <i class="fas fa-calendar-check nav-icon"></i>
+          <span class="nav-text">Reservations</span>
+        </li>
+        <li class="nav-item" data-section="rooms">
+          <i class="fas fa-bed nav-icon"></i>
+          <span class="nav-text">Rooms</span>
+        </li>
+        <li class="nav-item" data-section="guests">
+          <i class="fas fa-users nav-icon"></i>
+          <span class="nav-text">Guests</span>
+        </li>
+        <li class="nav-item" data-section="reports">
+          <i class="fas fa-chart-bar nav-icon"></i>
+          <span class="nav-text">Reports</span>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <i class="fas fa-user-circle" style="font-size: 2rem;"></i>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-title">
+          <h1>Hotel Reservation Dashboard</h1>
+          <p>Welcome back, Admin. Today is <span id="currentDate">Monday, October 16, 2023</span></p>
+        </div>
+        
+        <div class="header-actions">
+          <div id="connectionStatus" class="status-badge status-pending">
+            <i class="fas fa-spinner fa-spin"></i> Connecting
+          </div>
+          <button class="notification-badge" id="notificationBtn">
+            <i class="fas fa-bell"></i>
+            <span class="badge" id="notificationBadge"></span>
+          </button>
+          <button class="settings-toggle" id="settingsToggle">
+            <i class="fas fa-cog"></i>
+          </button>
+        </div>
+      </header>
+      
+      <!-- Content Area -->
+      <div class="content-area" id="contentArea">
+        <!-- Dashboard Content -->
+        <div class="dashboard-section" id="dashboardSection">
+          <!-- Filter Controls -->
+          <div class="filter-controls">
+            <div class="filter-group">
+              <label>Status Filter</label>
+              <select id="statusFilter" class="form-group">
+                <option value="all">All Statuses</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="pending">Pending</option>
+                <option value="checked-in">Checked-in</option>
+                <option value="checked-out">Checked-out</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Date Range</label>
+              <select id="dateRangeFilter" class="form-group">
+                <option value="all">All Dates</option>
+                <option value="today">Today</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="current">Current</option>
+                <option value="past">Past</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label style="visibility: hidden;">Actions</label>
+              <button class="btn btn-secondary" id="refreshBtn">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <!-- Health Status Card -->
+            <div class="card">
+              <div class="card-header">
+                <h3>System Health</h3>
+                <div class="card-actions">
+                  <button class="card-action-btn" id="refreshHealthBtn">
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="health-status">
+                  <div class="health-indicator healthy" id="healthIndicator"></div>
+                  <div>
+                    <h4 id="healthTitle">All systems operational</h4>
+                    <p class="text-secondary" id="healthTimestamp">Last updated: Just now</p>
+                  </div>
+                </div>
+                
+                <div class="health-metrics" id="healthMetrics">
+                  <div class="metric">
+                    <div class="metric-value" id="uptimeMetric">98.5%</div>
+                    <div class="metric-label">Uptime</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value" id="responseTimeMetric">24ms</div>
+                    <div class="metric-label">Avg Response</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value" id="activeUsersMetric">127</div>
+                    <div class="metric-label">Active Users</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value" id="errorsMetric">0</div>
+                    <div class="metric-label">Errors</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Reservations Overview Card -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Reservations Overview</h3>
+                <div class="card-actions">
+                  <button class="card-action-btn" id="refreshStatsBtn">
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="health-metrics" id="reservationsOverview">
+                  <div class="metric">
+                    <div class="metric-value" id="todayMetric">0</div>
+                    <div class="metric-label">Today</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value" id="weekMetric">0</div>
+                    <div class="metric-label">This Week</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value" id="occupancyMetric">0%</div>
+                    <div class="metric-label">Occupancy</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value" id="checkoutsMetric">0</div>
+                    <div class="metric-label">Check-outs</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Recent Reservations Card -->
+            <div class="card" style="grid-column: span 2;">
+              <div class="card-header">
+                <h3>Recent Reservations</h3>
+                <div class="card-actions">
+                  <button class="card-action-btn" id="filterBtn">
+                    <i class="fas fa-filter"></i>
+                  </button>
+                  <button class="card-action-btn" id="exportBtn">
+                    <i class="fas fa-download"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <table class="reservations-table" id="reservationsTable">
+                  <thead>
+                    <tr>
+                      <th>Guest Name</th>
+                      <th>Room</th>
+                      <th>Check-in</th>
+                      <th>Check-out</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reservationList">
+                    <!-- Reservation data will be loaded here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Add Reservation Form -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Add New Reservation</h3>
+            </div>
+            <div class="card-body">
+              <form id="reservationForm">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="guestName">Guest Name</label>
+                    <input type="text" id="guestName" name="guestName" placeholder="Enter guest name" required>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="roomNumber">Room Number</label>
+                    <select id="roomNumber" name="roomNumber" required>
+                      <option value="">Select room</option>
+                      <option value="101">101 - Standard</option>
+                      <option value="102">102 - Standard</option>
+                      <option value="201">201 - Deluxe</option>
+                      <option value="202">202 - Deluxe</option>
+                      <option value="301">301 - Suite</option>
+                      <option value="302">302 - Suite</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="fromDate">Check-in Date</label>
+                    <input type="date" id="fromDate" name="fromDate" required>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="toDate">Check-out Date</label>
+                    <input type="date" id="toDate" name="toDate" required>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status" required>
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="checked-in">Checked-in</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary">Add Reservation</button>
+                  <button type="reset" class="btn btn-secondary">Clear Form</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Other sections (hidden by default) -->
+        <div class="dashboard-section" id="reservationsSection" style="display: none;">
+          <h2>Reservations Management</h2>
+          <p>Full reservations management interface would go here.</p>
+        </div>
+        
+        <div class="dashboard-section" id="roomsSection" style="display: none;">
+          <h2>Rooms Management</h2>
+          <p>Rooms management interface would go here.</p>
+        </div>
+        
+        <div class="dashboard-section" id="guestsSection" style="display: none;">
+          <h2>Guests Management</h2>
+          <p>Guests management interface would go here.</p>
+        </div>
+        
+        <div class="dashboard-section" id="reportsSection" style="display: none;">
+          <h2>Reports & Analytics</h2>
+          <p>Reporting and analytics interface would go here.</p>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <footer class="footer">
+        <p>Hotel Reservation App v1.0 by VitrixLab &copy; <span id="currentYear">2026</span> | Last updated: <span id="lastUpdateTime">Just now</span></p>
+      </footer>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-header">
+        <h3>Settings</h3>
+        <button class="close-settings" id="closeSettings">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="settings-content">
+        <div class="settings-section">
+          <h4>Theme Settings</h4>
+          <p>Choose your preferred theme</p>
+          <div class="theme-selector">
+            <div class="theme-option active" data-theme="light">
+              <div class="theme-icon">
+                <i class="fas fa-sun"></i>
+              </div>
+              <div>Light Mode</div>
+            </div>
+            <div class="theme-option" data-theme="dark">
+              <div class="theme-icon">
+                <i class="fas fa-moon"></i>
+              </div>
+              <div>Dark Mode</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h4>Interface Settings</h4>
+          
+          <div class="slider-container">
+            <label for="fontSize">Font Size</label>
+            <input type="range" min="12" max="24" value="16" class="slider" id="fontSize">
+            <span id="fontSizeValue">16px</span>
+          </div>
+          
+          <div class="slider-container">
+            <label for="borderRadius">Border Radius</label>
+            <input type="range" min="0" max="16" value="8" class="slider" id="borderRadius">
+            <span id="borderRadiusValue">8px</span>
+          </div>
+          
+          <div style="margin-top: 1.5rem;">
+            <label style="display: flex; align-items: center; gap: 1rem;">
+              <span>Compact Mode</span>
+              <label class="switch">
+                <input type="checkbox" id="compactMode">
+                <span class="slider-switch"></span>
+              </label>
+            </label>
+          </div>
+          
+          <div style="margin-top: 1rem;">
+            <label style="display: flex; align-items: center; gap: 1rem;">
+              <span>Show Notifications</span>
+              <label class="switch">
+                <input type="checkbox" id="showNotifications" checked>
+                <span class="slider-switch"></span>
+              </label>
+            </label>
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h4>Backend Settings</h4>
+          
+          <div class="form-group">
+            <label for="backendUrl">Backend URL</label>
+            <input type="text" id="backendUrl" name="backendUrl" placeholder="http://localhost:8080">
+          </div>
+          
+          <div style="margin-top: 1rem;">
+            <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" id="testConnectionBtn">
+              <i class="fas fa-plug"></i> Test Connection
+            </button>
+            <button class="btn btn-secondary" style="width: 100%;" id="clearCacheBtn">
+              <i class="fas fa-trash"></i> Clear Cache
+            </button>
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h4>Data Settings</h4>
+          
+          <div style="margin-bottom: 1rem;">
+            <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" id="exportDataBtn">
+              <i class="fas fa-download"></i> Export Data
+            </button>
+          </div>
+          
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="resetSettings">
+            <i class="fas fa-redo"></i> Reset to Defaults
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Configuration & Constants =====
+    const CONFIG = {
+      // Dynamic backend URL resolution
+      BACKEND_URL: (() => {
+        // Check localStorage first
+        const savedUrl = localStorage.getItem('backend-url');
+        if (savedUrl) return savedUrl;
+        
+        // Check for environment-specific URLs
+        if (window.location.hostname.includes('github.dev') || window.location.hostname.includes('codespaces')) {
+          return `https://${window.location.hostname.replace(/^(https?:\/\/)?/, '').split('-')[0]}-8080.app.github.dev`;
+        }
+        
+        // Check for local development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          return 'http://localhost:8080';
+        }
+        
+        // Production fallback
+        return `${window.location.origin}/api`;
+      })(),
+      
+      // API Endpoints
+      ENDPOINTS: {
+        HEALTH: '/health',
+        RESERVATIONS: '/reservations',
+        ROOMS: '/rooms',
+        GUESTS: '/guests',
+        STATS: '/stats',
+        NOTIFICATIONS: '/notifications'
+      },
+      
+      // Polling intervals (in milliseconds)
+      POLLING: {
+        HEALTH: 30000, // 30 seconds
+        RESERVATIONS: 60000, // 1 minute
+        NOTIFICATIONS: 15000 // 15 seconds
+      },
+      
+      // Retry configuration
+      RETRY: {
+        MAX_ATTEMPTS: 3,
+        INITIAL_DELAY: 1000,
+        MAX_DELAY: 10000
+      },
+      
+      // Notification settings
+      NOTIFICATIONS: {
+        TIMEOUT: 5000,
+        MAX_VISIBLE: 5
+      }
+    };
+
+    // ===== State Management =====
+    const APP_STATE = {
+      reservations: [],
+      healthStatus: null,
+      rooms: [],
+      guests: [],
+      stats: {},
+      notifications: [],
+      isInitialized: false,
+      pendingRequests: 0,
+      lastUpdate: null,
+      connectionStatus: 'connecting',
+      activeFilters: {
+        status: 'all',
+        dateRange: 'all'
+      },
+      sampleReservations: [
+        { id: 1, guestName: "John Smith", roomNumber: "101", fromDate: "2023-10-16", toDate: "2023-10-18", status: "confirmed" },
+        { id: 2, guestName: "Emma Johnson", roomNumber: "201", fromDate: "2023-10-15", toDate: "2023-10-20", status: "checked-in" },
+        { id: 3, guestName: "Michael Brown", roomNumber: "102", fromDate: "2023-10-17", toDate: "2023-10-19", status: "pending" },
+        { id: 4, guestName: "Sarah Davis", roomNumber: "301", fromDate: "2023-10-14", toDate: "2023-10-17", status: "checked-out" },
+        { id: 5, guestName: "Robert Wilson", roomNumber: "202", fromDate: "2023-10-18", toDate: "2023-10-22", status: "confirmed" }
+      ]
+    };
+
+    // ===== DOM Elements =====
+    const sidebar = document.getElementById('sidebar');
+    const collapseToggle = document.getElementById('collapseToggle');
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const closeSettings = document.getElementById('closeSettings');
+    const themeOptions = document.querySelectorAll('.theme-option');
+    const navItems = document.querySelectorAll('.nav-item');
+    const dashboardSection = document.getElementById('dashboardSection');
+    const reservationsSection = document.getElementById('reservationsSection');
+    const roomsSection = document.getElementById('roomsSection');
+    const guestsSection = document.getElementById('guestsSection');
+    const reportsSection = document.getElementById('reportsSection');
+    const reservationForm = document.getElementById('reservationForm');
+    const reservationList = document.getElementById('reservationList');
+    const fontSizeSlider = document.getElementById('fontSize');
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    const borderRadiusSlider = document.getElementById('borderRadius');
+    const borderRadiusValue = document.getElementById('borderRadiusValue');
+    const compactMode = document.getElementById('compactMode');
+    const resetSettings = document.getElementById('resetSettings');
+    const currentDateElement = document.getElementById('currentDate');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const notificationBadge = document.getElementById('notificationBadge');
+    const statusFilter = document.getElementById('statusFilter');
+    const dateRangeFilter = document.getElementById('dateRangeFilter');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const refreshHealthBtn = document.getElementById('refreshHealthBtn');
+    const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+    const backendUrlInput = document.getElementById('backendUrl');
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const clearCacheBtn = document.getElementById('clearCacheBtn');
+    const exportDataBtn = document.getElementById('exportDataBtn');
+    const currentYear = document.getElementById('currentYear');
+    const lastUpdateTime = document.getElementById('lastUpdateTime');
+
+    // ===== Utility Classes =====
+    class HttpError extends Error {
+      constructor(status, message, data = null) {
+        super(message);
+        this.name = 'HttpError';
+        this.status = status;
+        this.data = data;
+      }
+    }
+
+    // ===== Utility Functions =====
+    /**
+     * Enhanced fetch with timeout, retry, and error handling
+     */
+    async function safeFetch(endpoint, options = {}, retryCount = 0) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      try {
+        const url = `${CONFIG.BACKEND_URL}${endpoint}`;
+        APP_STATE.pendingRequests++;
+        updateConnectionStatus();
+        
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...options.headers
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          let errorData = null;
+          try {
+            errorData = await response.json();
+          } catch {
+            // Ignore JSON parsing errors for error responses
+          }
+          
+          throw new HttpError(response.status, `HTTP ${response.status}: ${response.statusText}`, errorData);
+        }
+        
+        const data = await response.json();
+        return data;
+        
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        // Retry logic for network errors or 5xx errors
+        if (retryCount < CONFIG.RETRY.MAX_ATTEMPTS && 
+            (error.name === 'AbortError' || error.name === 'TypeError' || 
+             (error.status && error.status >= 500))) {
+          
+          const delay = Math.min(
+            CONFIG.RETRY.INITIAL_DELAY * Math.pow(2, retryCount),
+            CONFIG.RETRY.MAX_DELAY
+          );
+          
+          console.warn(`Retry ${retryCount + 1}/${CONFIG.RETRY.MAX_ATTEMPTS} for ${endpoint} after ${delay}ms`);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return safeFetch(endpoint, options, retryCount + 1);
+        }
+        
+        throw error;
+        
+      } finally {
+        APP_STATE.pendingRequests--;
+        updateConnectionStatus();
+      }
+    }
+
+    /**
+     * Update UI connection status indicator
+     */
+    function updateConnectionStatus() {
+      if (!connectionStatus) return;
+      
+      if (APP_STATE.pendingRequests > 0) {
+        APP_STATE.connectionStatus = 'loading';
+        connectionStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+        connectionStatus.className = 'status-badge status-pending';
+      } else if (APP_STATE.healthStatus?.status === 'healthy') {
+        APP_STATE.connectionStatus = 'connected';
+        connectionStatus.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+        connectionStatus.className = 'status-badge status-confirmed';
+      } else {
+        APP_STATE.connectionStatus = 'disconnected';
+        connectionStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Disconnected';
+        connectionStatus.className = 'status-badge status-checked-out';
+      }
+    }
+
+    /**
+     * Show notification to user
+     */
+    function showNotification(message, type = 'info', duration = CONFIG.NOTIFICATIONS.TIMEOUT) {
+      const notification = {
+        id: Date.now(),
+        message,
+        type,
+        timestamp: new Date()
+      };
+      
+      APP_STATE.notifications.unshift(notification);
+      
+      // Limit number of notifications
+      if (APP_STATE.notifications.length > CONFIG.NOTIFICATIONS.MAX_VISIBLE) {
+        APP_STATE.notifications.pop();
+      }
+      
+      updateNotificationBadge();
+      showToastNotification(message, type, duration);
+      
+      // Log to console for debugging
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    /**
+     * Update notification badge count
+     */
+    function updateNotificationBadge() {
+      if (notificationBadge) {
+        const unreadCount = APP_STATE.notifications.filter(n => n.type === 'error' || n.type === 'warning').length;
+        notificationBadge.textContent = unreadCount > 0 ? unreadCount : '';
+        notificationBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+      }
+    }
+
+    /**
+     * Show toast notification
+     */
+    function showToastNotification(message, type = 'info', duration = 5000) {
+      const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+      
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <div class="toast-icon">
+          <i class="fas ${getIconForType(type)}"></i>
+        </div>
+        <div class="toast-content">${message}</div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      
+      toastContainer.appendChild(toast);
+      
+      // Auto-remove after duration
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.remove();
+        }
+      }, duration);
+    }
+
+    function getIconForType(type) {
+      switch (type) {
+        case 'success': return 'fa-check-circle';
+        case 'error': return 'fa-exclamation-circle';
+        case 'warning': return 'fa-exclamation-triangle';
+        case 'info':
+        default: return 'fa-info-circle';
+      }
+    }
+
+    function createToastContainer() {
+      const container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+      return container;
+    }
+
+    // ===== Health Status Management =====
+    async function loadHealth() {
+      try {
+        const data = await safeFetch(CONFIG.ENDPOINTS.HEALTH);
+        APP_STATE.healthStatus = data;
+        APP_STATE.lastUpdate = new Date();
+        
+        updateHealthUI(data);
+        updateConnectionStatus();
+        
+        // Show notification if status changed
+        if (data.status !== 'healthy') {
+          showNotification(`System health: ${data.status}`, 'warning');
+        }
+        
+        return data;
+        
+      } catch (error) {
+        console.error('Health check failed:', error);
+        APP_STATE.healthStatus = { status: 'unhealthy', message: error.message };
+        
+        updateHealthUI({
+          status: 'error',
+          message: `Connection failed: ${error.message}`,
+          timestamp: new Date().toISOString()
+        });
+        
+        showNotification('Unable to connect to server', 'error');
+        updateConnectionStatus();
+        
+        // Fallback to sample data
+        useSampleData();
+        
+        throw error;
+      }
+    }
+
+    function updateHealthUI(healthData) {
+      const healthIndicator = document.getElementById('healthIndicator');
+      const healthTitle = document.getElementById('healthTitle');
+      const healthTimestamp = document.getElementById('healthTimestamp');
+      
+      if (!healthIndicator || !healthTitle) return;
+      
+      // Update status indicator
+      healthIndicator.className = 'health-indicator';
+      healthIndicator.classList.add(healthData.status === 'healthy' ? 'healthy' : 
+                                   healthData.status === 'degraded' ? 'warning' : 'error');
+      
+      // Update status text
+      healthTitle.textContent = healthData.status === 'healthy' ? 'All systems operational' :
+                               healthData.status === 'degraded' ? 'System degraded' :
+                               'System issues detected';
+      
+      // Update timestamp
+      if (healthTimestamp && healthData.timestamp) {
+        const time = new Date(healthData.timestamp).toLocaleTimeString();
+        healthTimestamp.textContent = `Last updated: ${time}`;
+      }
+      
+      // Update metrics if provided
+      if (healthData.metrics) {
+        document.getElementById('uptimeMetric').textContent = healthData.metrics.uptime || '98.5%';
+        document.getElementById('responseTimeMetric').textContent = healthData.metrics.responseTime || '24ms';
+        document.getElementById('activeUsersMetric').textContent = healthData.metrics.activeUsers || '127';
+        document.getElementById('errorsMetric').textContent = healthData.metrics.errors || '0';
+      }
+    }
+
+    // ===== Reservations Management =====
+    async function loadReservations() {
+      try {
+        const data = await safeFetch(CONFIG.ENDPOINTS.RESERVATIONS);
+        APP_STATE.reservations = data.data || data;
+        APP_STATE.lastUpdate = new Date();
+        
+        updateReservationsUI(APP_STATE.reservations);
+        updateStats();
+        
+        return data;
+        
+      } catch (error) {
+        console.error('Failed to load reservations:', error);
+        showNotification('Failed to load reservations', 'error');
+        
+        // Fallback to sample data
+        useSampleData();
+        
+        throw error;
+      }
+    }
+
+    function useSampleData() {
+      APP_STATE.reservations = APP_STATE.sampleReservations;
+      APP_STATE.lastUpdate = new Date();
+      
+      updateReservationsUI(APP_STATE.reservations);
+      updateStats();
+      
+      showNotification('Using sample data - Backend connection failed', 'warning');
+    }
+
+    function updateReservationsUI(reservations) {
+      if (!reservationList) return;
+      
+      // Filter reservations based on active filters
+      let filteredReservations = filterReservations(reservations);
+      
+      if (filteredReservations.length === 0) {
+        reservationList.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 2rem;">
+              <i class="fas fa-calendar-times" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <p>No reservations found</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      reservationList.innerHTML = '';
+      
+      filteredReservations.forEach(reservation => {
+        const row = document.createElement('tr');
+        
+        // Format dates for display
+        const fromDate = new Date(reservation.fromDate);
+        const toDate = new Date(reservation.toDate);
+        const fromDateFormatted = fromDate.toLocaleDateString();
+        const toDateFormatted = toDate.toLocaleDateString();
+        
+        // Determine status badge
+        const statusClass = getStatusClass(reservation.status);
+        const statusText = reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1);
+        
+        row.innerHTML = `
+          <td>${reservation.guestName}</td>
+          <td>${reservation.roomNumber}</td>
+          <td>${fromDateFormatted}</td>
+          <td>${toDateFormatted}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>
+            <button class="card-action-btn" onclick="editReservation(${reservation.id})">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="card-action-btn" onclick="deleteReservation(${reservation.id})">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        `;
+        
+        reservationList.appendChild(row);
+      });
+      
+      updateLastUpdateTime();
+    }
+
+    function filterReservations(reservations) {
+      const { status, dateRange } = APP_STATE.activeFilters;
+      let filtered = [...reservations];
+      
+      // Filter by status
+      if (status !== 'all') {
+        filtered = filtered.filter(r => r.status === status);
+      }
+      
+      // Filter by date range
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      
+      switch (dateRange) {
+        case 'today':
+          filtered = filtered.filter(r => {
+            const fromDate = new Date(r.fromDate);
+            return fromDate.toDateString() === now.toDateString();
+          });
+          break;
+        case 'upcoming':
+          filtered = filtered.filter(r => {
+            const fromDate = new Date(r.fromDate);
+            return fromDate > now;
+          });
+          break;
+        case 'past':
+          filtered = filtered.filter(r => {
+            const toDate = new Date(r.toDate);
+            return toDate < now;
+          });
+          break;
+        case 'current':
+          filtered = filtered.filter(r => {
+            const fromDate = new Date(r.fromDate);
+            const toDate = new Date(r.toDate);
+            return fromDate <= now && toDate >= now;
+          });
+          break;
+      }
+      
+      return filtered;
+    }
+
+    function getStatusClass(status) {
+      switch (status) {
+        case 'confirmed': return 'status-confirmed';
+        case 'pending': return 'status-pending';
+        case 'checked-in': return 'status-checked-in';
+        case 'checked-out': return 'status-checked-out';
+        case 'cancelled': return 'status-checked-out';
+        default: return 'status-pending';
+      }
+    }
+
+    async function addReservation(reservationData) {
+      try {
+        const result = await safeFetch(CONFIG.ENDPOINTS.RESERVATIONS, {
+          method: 'POST',
+          body: JSON.stringify(reservationData)
+        });
+        
+        // Add to local state
+        if (result.id) {
+          APP_STATE.reservations.unshift(result);
+        } else {
+          // If backend doesn't return the created object, create it locally
+          const newReservation = {
+            id: APP_STATE.reservations.length + 1,
+            ...reservationData
+          };
+          APP_STATE.reservations.unshift(newReservation);
+        }
+        
+        // Update UI
+        updateReservationsUI(APP_STATE.reservations);
+        updateStats();
+        
+        showNotification('Reservation added successfully', 'success');
+        return result;
+        
+      } catch (error) {
+        console.error('Failed to add reservation:', error);
+        
+        let errorMessage = 'Failed to add reservation';
+        if (error.data?.message) {
+          errorMessage += `: ${error.data.message}`;
+        } else if (error.message) {
+          errorMessage += `: ${error.message}`;
+        }
+        
+        showNotification(errorMessage, 'error');
+        throw error;
+      }
+    }
+
+    async function editReservation(id) {
+      // Find reservation
+      const reservation = APP_STATE.reservations.find(r => r.id === id);
+      if (!reservation) {
+        showNotification('Reservation not found', 'error');
+        return;
+      }
+      
+      // Open edit modal
+      showEditModal(reservation);
+    }
+
+    async function deleteReservation(id) {
+      if (!confirm('Are you sure you want to delete this reservation?')) {
+        return;
+      }
+      
+      try {
+        await safeFetch(`${CONFIG.ENDPOINTS.RESERVATIONS}/${id}`, {
+          method: 'DELETE'
+        });
+        
+        // Remove from local state
+        APP_STATE.reservations = APP_STATE.reservations.filter(r => r.id !== id);
+        
+        // Update UI
+        updateReservationsUI(APP_STATE.reservations);
+        updateStats();
+        
+        showNotification('Reservation deleted successfully', 'success');
+        
+      } catch (error) {
+        console.error('Failed to delete reservation:', error);
+        showNotification('Failed to delete reservation', 'error');
+      }
+    }
+
+    function showEditModal(reservation) {
+      // Create or show edit modal
+      const modal = document.getElementById('editModal') || createEditModal();
+      
+      // Populate form with reservation data
+      document.getElementById('editGuestName').value = reservation.guestName;
+      document.getElementById('editRoomNumber').value = reservation.roomNumber;
+      document.getElementById('editFromDate').value = reservation.fromDate;
+      document.getElementById('editToDate').value = reservation.toDate;
+      document.getElementById('editStatus').value = reservation.status;
+      document.getElementById('editReservationId').value = reservation.id;
+      
+      // Show modal
+      modal.style.display = 'block';
+    }
+
+    function createEditModal() {
+      const modal = document.createElement('div');
+      modal.id = 'editModal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Edit Reservation</h3>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="editReservationForm">
+              <input type="hidden" id="editReservationId">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="editGuestName">Guest Name</label>
+                  <input type="text" id="editGuestName" required>
+                </div>
+                <div class="form-group">
+                  <label for="editRoomNumber">Room Number</label>
+                  <input type="text" id="editRoomNumber" required>
+                </div>
+                <div class="form-group">
+                  <label for="editFromDate">Check-in</label>
+                  <input type="date" id="editFromDate" required>
+                </div>
+                <div class="form-group">
+                  <label for="editToDate">Check-out</label>
+                  <input type="date" id="editToDate" required>
+                </div>
+                <div class="form-group">
+                  <label for="editStatus">Status</label>
+                  <select id="editStatus" required>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="checked-in">Checked-in</option>
+                    <option value="checked-out">Checked-out</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Update Reservation</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Handle form submission
+      document.getElementById('editReservationForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const updatedReservation = {
+          id: parseInt(document.getElementById('editReservationId').value),
+          guestName: document.getElementById('editGuestName').value,
+          roomNumber: document.getElementById('editRoomNumber').value,
+          fromDate: document.getElementById('editFromDate').value,
+          toDate: document.getElementById('editToDate').value,
+          status: document.getElementById('editStatus').value
+        };
+        
+        try {
+          const result = await safeFetch(`${CONFIG.ENDPOINTS.RESERVATIONS}/${updatedReservation.id}`, {
+            method: 'PUT',
+            body: JSON.stringify(updatedReservation)
+          });
+          
+          // Update local state
+          const index = APP_STATE.reservations.findIndex(r => r.id === updatedReservation.id);
+          if (index !== -1) {
+            APP_STATE.reservations[index] = result;
+          }
+          
+          // Update UI
+          updateReservationsUI(APP_STATE.reservations);
+          updateStats();
+          
+          closeEditModal();
+          showNotification('Reservation updated successfully', 'success');
+          
+        } catch (error) {
+          console.error('Failed to update reservation:', error);
+          showNotification('Failed to update reservation', 'error');
+        }
+      });
+      
+      return modal;
+    }
+
+    function closeEditModal() {
+      const modal = document.getElementById('editModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // ===== Statistics & Dashboard Updates =====
+    async function loadStats() {
+      try {
+        const data = await safeFetch(CONFIG.ENDPOINTS.STATS);
+        APP_STATE.stats = data;
+        updateStats();
+        return data;
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+        // Calculate stats from local data
+        calculateLocalStats();
+      }
+    }
+
+    function calculateLocalStats() {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      
+      APP_STATE.stats = {
+        today: APP_STATE.reservations.filter(r => r.fromDate === today).length,
+        thisWeek: APP_STATE.reservations.filter(r => {
+          const fromDate = new Date(r.fromDate);
+          return fromDate >= weekStart;
+        }).length,
+        occupancy: calculateOccupancyRate(),
+        checkoutsToday: APP_STATE.reservations.filter(r => r.toDate === today && r.status === 'checked-in').length
+      };
+      
+      updateStats();
+    }
+
+    function calculateOccupancyRate() {
+      const totalRooms = 50;
+      const occupiedRooms = APP_STATE.reservations.filter(r => 
+        r.status === 'checked-in' || r.status === 'confirmed'
+      ).length;
+      
+      return Math.round((occupiedRooms / totalRooms) * 100);
+    }
+
+    function updateStats() {
+      document.getElementById('todayMetric').textContent = APP_STATE.stats.today || 0;
+      document.getElementById('weekMetric').textContent = APP_STATE.stats.thisWeek || 0;
+      document.getElementById('occupancyMetric').textContent = `${APP_STATE.stats.occupancy || 0}%`;
+      document.getElementById('checkoutsMetric').textContent = APP_STATE.stats.checkoutsToday || 0;
+    }
+
+    function updateLastUpdateTime() {
+      if (!APP_STATE.lastUpdate || !lastUpdateTime) return;
+      
+      const now = new Date();
+      const diff = Math.floor((now - APP_STATE.lastUpdate) / 1000);
+      
+      if (diff < 60) {
+        lastUpdateTime.textContent = `${diff} seconds ago`;
+      } else if (diff < 3600) {
+        lastUpdateTime.textContent = `${Math.floor(diff / 60)} minutes ago`;
+      } else {
+        lastUpdateTime.textContent = `${Math.floor(diff / 3600)} hours ago`;
+      }
+    }
+
+    // ===== Form Handling =====
+    function initializeFormHandlers() {
+      if (reservationForm) {
+        reservationForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          
+          const formData = new FormData(reservationForm);
+          const reservationData = {
+            guestName: formData.get('guestName'),
+            roomNumber: formData.get('roomNumber'),
+            fromDate: formData.get('fromDate'),
+            toDate: formData.get('toDate'),
+            status: formData.get('status') || 'pending'
+          };
+          
+          try {
+            await addReservation(reservationData);
+            reservationForm.reset();
+            
+            // Set default dates
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            
+            document.getElementById('fromDate').valueAsDate = tomorrow;
+            document.getElementById('toDate').valueAsDate = nextWeek;
+          } catch (error) {
+            // Error already handled by addReservation
+          }
+        });
+      }
+    }
+
+    // ===== Polling & Auto-refresh =====
+    let pollingIntervals = [];
+
+    function startPolling() {
+      // Clear any existing intervals
+      stopPolling();
+      
+      // Health check polling
+      pollingIntervals.push(setInterval(() => {
+        loadHealth().catch(() => {
+          // Error already handled by loadHealth
+        });
+      }, CONFIG.POLLING.HEALTH));
+      
+      // Reservations polling
+      pollingIntervals.push(setInterval(() => {
+        loadReservations().catch(() => {
+          // Error already handled by loadReservations
+        });
+      }, CONFIG.POLLING.RESERVATIONS));
+      
+      // Stats polling
+      pollingIntervals.push(setInterval(() => {
+        loadStats().catch(() => {
+          // Error already handled by loadStats
+        });
+      }, CONFIG.POLLING.RESERVATIONS * 2));
+      
+      // Update last update time every minute
+      pollingIntervals.push(setInterval(() => {
+        updateLastUpdateTime();
+      }, 60000));
+    }
+
+    function stopPolling() {
+      pollingIntervals.forEach(interval => clearInterval(interval));
+      pollingIntervals = [];
+    }
+
+    // ===== UI Event Handlers =====
+    function initializeUIHandlers() {
+      // Sidebar toggle
+      if (collapseToggle) {
+        collapseToggle.addEventListener('click', function() {
+          sidebar.classList.toggle('collapsed');
+          const icon = this.querySelector('i');
+          if (sidebar.classList.contains('collapsed')) {
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
+          } else {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-left');
+          }
+        });
+      }
+
+      // Navigation handling
+      navItems.forEach(item => {
+        item.addEventListener('click', function() {
+          // Remove active class from all nav items
+          navItems.forEach(navItem => navItem.classList.remove('active'));
+          
+          // Add active class to clicked nav item
+          this.classList.add('active');
+          
+          // Get the section to show
+          const section = this.dataset.section;
+          
+          // Hide all sections
+          const sections = [
+            dashboardSection,
+            reservationsSection,
+            roomsSection,
+            guestsSection,
+            reportsSection
+          ];
+          sections.forEach(sec => sec.style.display = 'none');
+          
+          // Show the selected section
+          switch(section) {
+            case 'dashboard':
+              dashboardSection.style.display = 'block';
+              break;
+            case 'reservations':
+              reservationsSection.style.display = 'block';
+              break;
+            case 'rooms':
+              roomsSection.style.display = 'block';
+              break;
+            case 'guests':
+              guestsSection.style.display = 'block';
+              break;
+            case 'reports':
+              reportsSection.style.display = 'block';
+              break;
+          }
+        });
+      });
+
+      // Settings panel toggle
+      if (settingsToggle) {
+        settingsToggle.addEventListener('click', function() {
+          settingsPanel.classList.add('open');
+          if (backendUrlInput) {
+            backendUrlInput.value = CONFIG.BACKEND_URL;
+          }
+        });
+      }
+
+      if (closeSettings) {
+        closeSettings.addEventListener('click', function() {
+          settingsPanel.classList.remove('open');
+        });
+      }
+
+      // Theme selection
+      themeOptions.forEach(option => {
+        option.addEventListener('click', function() {
+          const selectedTheme = this.dataset.theme;
+          setTheme(selectedTheme);
+          
+          // Update active state
+          themeOptions.forEach(opt => opt.classList.remove('active'));
+          this.classList.add('active');
+          
+          // Save to localStorage
+          localStorage.setItem('dashboard-theme', selectedTheme);
+        });
+      });
+
+      // Settings sliders
+      if (fontSizeSlider) {
+        fontSizeSlider.addEventListener('input', function() {
+          const size = this.value;
+          fontSizeValue.textContent = size + 'px';
+          document.body.style.fontSize = size + 'px';
+          localStorage.setItem('dashboard-fontSize', size);
+        });
+      }
+
+      if (borderRadiusSlider) {
+        borderRadiusSlider.addEventListener('input', function() {
+          const radius = this.value;
+          borderRadiusValue.textContent = radius + 'px';
+          document.documentElement.style.setProperty('--border-radius', radius + 'px');
+          localStorage.setItem('dashboard-borderRadius', radius);
+        });
+      }
+
+      // Compact mode toggle
+      if (compactMode) {
+        compactMode.addEventListener('change', function() {
+          if (this.checked) {
+            document.body.classList.add('compact-mode');
+          } else {
+            document.body.classList.remove('compact-mode');
+          }
+          localStorage.setItem('dashboard-compactMode', this.checked);
+        });
+      }
+
+      // Reset settings
+      if (resetSettings) {
+        resetSettings.addEventListener('click', function() {
+          // Reset theme to light
+          setTheme('light');
+          themeOptions.forEach(option => {
+            option.classList.remove('active');
+            if (option.dataset.theme === 'light') {
+              option.classList.add('active');
+            }
+          });
+          
+          // Reset font size
+          fontSizeSlider.value = 16;
+          fontSizeValue.textContent = '16px';
+          document.body.style.fontSize = '16px';
+          
+          // Reset border radius
+          borderRadiusSlider.value = 8;
+          borderRadiusValue.textContent = '8px';
+          document.documentElement.style.setProperty('--border-radius', '8px');
+          
+          // Reset compact mode
+          compactMode.checked = false;
+          document.body.classList.remove('compact-mode');
+          
+          // Reset backend URL
+          CONFIG.BACKEND_URL = 'http://localhost:8080';
+          localStorage.removeItem('backend-url');
+          if (backendUrlInput) {
+            backendUrlInput.value = CONFIG.BACKEND_URL;
+          }
+          
+          // Save reset values
+          localStorage.setItem('dashboard-theme', 'light');
+          localStorage.setItem('dashboard-fontSize', '16');
+          localStorage.setItem('dashboard-borderRadius', '8');
+          localStorage.setItem('dashboard-compactMode', 'false');
+          
+          showNotification('Settings reset to defaults', 'success');
+          
+          // Reinitialize connection
+          setTimeout(() => {
+            loadHealth();
+            loadReservations();
+          }, 1000);
+        });
+      }
+
+      // Filter controls
+      if (statusFilter) {
+        statusFilter.addEventListener('change', function() {
+          APP_STATE.activeFilters.status = this.value;
+          updateReservationsUI(APP_STATE.reservations);
+        });
+      }
+
+      if (dateRangeFilter) {
+        dateRangeFilter.addEventListener('change', function() {
+          APP_STATE.activeFilters.dateRange = this.value;
+          updateReservationsUI(APP_STATE.reservations);
+        });
+      }
+
+      // Refresh buttons
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+          loadReservations();
+          loadStats();
+          showNotification('Refreshing data...', 'info');
+        });
+      }
+
+      if (refreshHealthBtn) {
+        refreshHealthBtn.addEventListener('click', function() {
+          loadHealth();
+          showNotification('Refreshing health status...', 'info');
+        });
+      }
+
+      if (refreshStatsBtn) {
+        refreshStatsBtn.addEventListener('click', function() {
+          loadStats();
+          showNotification('Refreshing statistics...', 'info');
+        });
+      }
+
+      // Backend settings
+      if (backendUrlInput) {
+        backendUrlInput.value = CONFIG.BACKEND_URL;
+        backendUrlInput.addEventListener('change', function() {
+          CONFIG.BACKEND_URL = this.value;
+          localStorage.setItem('backend-url', this.value);
+          showNotification('Backend URL updated', 'info');
+        });
+      }
+
+      if (testConnectionBtn) {
+        testConnectionBtn.addEventListener('click', async function() {
+          try {
+            showNotification('Testing connection...', 'info');
+            await loadHealth();
+            showNotification('Connection test successful!', 'success');
+          } catch (error) {
+            showNotification('Connection test failed', 'error');
+          }
+        });
+      }
+
+      if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', function() {
+          localStorage.removeItem('dashboard-fontSize');
+          localStorage.removeItem('dashboard-borderRadius');
+          localStorage.removeItem('dashboard-compactMode');
+          localStorage.removeItem('dashboard-theme');
+          showNotification('Cache cleared', 'success');
+        });
+      }
+
+      if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', function() {
+          const dataStr = JSON.stringify(APP_STATE.reservations, null, 2);
+          const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+          const exportFileDefaultName = 'reservations-export.json';
+          
+          const linkElement = document.createElement('a');
+          linkElement.setAttribute('href', dataUri);
+          linkElement.setAttribute('download', exportFileDefaultName);
+          linkElement.click();
+          
+          showNotification('Data exported successfully', 'success');
+        });
+      }
+
+      // Set current year in footer
+      if (currentYear) {
+        currentYear.textContent = new Date().getFullYear();
+      }
+    }
+
+    // ===== Theme Function =====
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+    }
+
+    // ===== Load Saved Settings =====
+    function loadSettings() {
+      // Font size
+      const savedFontSize = localStorage.getItem('dashboard-fontSize');
+      if (savedFontSize) {
+        fontSizeSlider.value = savedFontSize;
+        fontSizeValue.textContent = savedFontSize + 'px';
+        document.body.style.fontSize = savedFontSize + 'px';
+      }
+      
+      // Border radius
+      const savedBorderRadius = localStorage.getItem('dashboard-borderRadius');
+      if (savedBorderRadius) {
+        borderRadiusSlider.value = savedBorderRadius;
+        borderRadiusValue.textContent = savedBorderRadius + 'px';
+        document.documentElement.style.setProperty('--border-radius', savedBorderRadius + 'px');
+      }
+      
+      // Compact mode
+      const savedCompactMode = localStorage.getItem('dashboard-compactMode');
+      if (savedCompactMode === 'true') {
+        compactMode.checked = true;
+        document.body.classList.add('compact-mode');
+      }
+      
+      // Theme
+      const savedTheme = localStorage.getItem('dashboard-theme') || 'light';
+      setTheme(savedTheme);
+      
+      // Highlight the active theme option
+      themeOptions.forEach(option => {
+        if (option.dataset.theme === savedTheme) {
+          option.classList.add('active');
+        } else {
+          option.classList.remove('active');
+        }
+      });
+      
+      // Backend URL
+      const savedBackendUrl = localStorage.getItem('backend-url');
+      if (savedBackendUrl) {
+        CONFIG.BACKEND_URL = savedBackendUrl;
+      }
+    }
+
+    // ===== Initialization =====
+    async function initializeApp() {
+      console.log('Initializing Hotel Reservation Dashboard...');
+      console.log('Backend URL:', CONFIG.BACKEND_URL);
+      
+      // Set current date
+      if (currentDateElement) {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        currentDateElement.textContent = now.toLocaleDateString('en-US', options);
+      }
+      
+      // Set default dates in form
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      
+      if (document.getElementById('fromDate')) {
+        document.getElementById('fromDate').valueAsDate = tomorrow;
+      }
+      
+      if (document.getElementById('toDate')) {
+        document.getElementById('toDate').valueAsDate = nextWeek;
+      }
+      
+      // Load saved settings
+      loadSettings();
+      
+      // Initialize UI handlers
+      initializeUIHandlers();
+      
+      // Initialize form handlers
+      initializeFormHandlers();
+      
+      // Load initial data
+      try {
+        await Promise.allSettled([
+          loadHealth(),
+          loadReservations(),
+          loadStats()
+        ]);
+        
+        APP_STATE.isInitialized = true;
+        showNotification('Dashboard initialized successfully', 'success');
+        
+        // Start polling
+        startPolling();
+        
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        showNotification('Dashboard initialization incomplete', 'warning');
+      }
+    }
+
+    // ===== Export functions for global access =====
+    window.editReservation = editReservation;
+    window.deleteReservation = deleteReservation;
+    window.closeEditModal = closeEditModal;
+
+    // ===== Initialize on DOM ready =====
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+
+    // ===== Cleanup on page unload =====
+    window.addEventListener('beforeunload', () => {
+      stopPolling();
+      console.log('Dashboard cleanup completed');
+    });
+  </script>
+</body>
+</html>
