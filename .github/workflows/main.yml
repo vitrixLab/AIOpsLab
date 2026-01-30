@@ -1,0 +1,55 @@
+name: MVP CI Workflow
+
+on:
+  push:
+    branches:
+      - sc-mvp/app-deploy  # Your branch
+  pull_request:
+    branches:
+      - sc-mvp/app-deploy
+
+jobs:
+  test-mvp:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4️⃣ Start backend in background
+      - name: Start backend
+        run: |
+          nohup npm run start &   # run server.js in background
+          sleep 5                 # wait for backend to start
+
+      # 5️⃣ Serve frontend in background
+      - name: Serve frontend
+        run: |
+          nohup npx http-server ./app/frontend -p 8081 -c-1 &
+          sleep 5
+
+      # 6️⃣ Test backend endpoints
+      - name: Test health endpoint
+        run: curl -f http://localhost:8080/health
+
+      - name: Test reservations endpoint
+        run: |
+          curl -f -X GET http://localhost:8080/reservations
+          curl -f -X POST http://localhost:8080/reservations \
+            -H "Content-Type: application/json" \
+            -d '{"guestName":"Test","roomNumber":"101","fromDate":"2026-01-30","toDate":"2026-02-02"}'
+
+      # 7️⃣ Optional: Test frontend
+      - name: Test frontend
+        run: curl -f http://localhost:8081/index.html
