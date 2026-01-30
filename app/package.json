@@ -4,7 +4,9 @@
   "description": "SC-MVP Hotel Reservation App",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "serve-frontend": "http-server ./app/frontend -p 8081 -c-1"
   },
   "dependencies": {
     "express": "^4.19.2"
