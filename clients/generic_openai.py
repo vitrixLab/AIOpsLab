@@ -1,66 +1,42 @@
-"""Naive GPT4 client (with shell access) for AIOpsLab.
+"""Generic OpenAI-compatible chat client (with shell access) for AIOpsLab.
 
-Achiam, Josh, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida et al. 
-"Gpt-4 technical report." arXiv preprint arXiv:2303.08774 (2023).
+This agent works with any provider that implements the OpenAI Chat Completions
+API endpoint (/v1/chat/completions), such as Poe
+(https://creator.poe.com/docs/external-applications/openai-compatible-api),
+standard OpenAI deployments, vLLM, LocalAI, or other compatible services.
 
-Code: https://openai.com/index/gpt-4-research/
-Paper: https://arxiv.org/abs/2303.08774
+Configure the endpoint and model via environment variables or constructor arguments:
+    OPENAI_COMPATIBLE_API_KEY  — API key for the target endpoint
+    OPENAI_COMPATIBLE_BASE_URL — Base URL of the target endpoint (e.g. https://api.poe.com/llm/v1)
+    OPENAI_COMPATIBLE_MODEL    — Model name to use (e.g. MiniMax-Text-01)
 """
+
 import os
 import asyncio
-import tiktoken
 import wandb
 from aiopslab.orchestrator import Orchestrator
 from aiopslab.orchestrator.problems.registry import ProblemRegistry
-from clients.utils.llm import GPTClient
-from dotenv import load_dotenv
-
+from clients.utils.llm import GenericOpenAIClient
 from clients.utils.templates import DOCS_SHELL_ONLY
+from dotenv import load_dotenv
 
 # Load environment variables from the .env file
 load_dotenv()
 
-def count_message_tokens(message, enc):
-    # Each message format adds ~4 tokens of overhead
-    tokens = 4  # <|start|>role/name + content + <|end|>
-    tokens += len(enc.encode(message.get("content", "")))
-    return tokens
 
-def trim_history_to_token_limit(history, max_tokens=120000, model="gpt-4"):
-    enc = tiktoken.encoding_for_model(model)
-
-    trimmed = []
-    total_tokens = 0
-
-    # Always include the last message
-    last_msg = history[-1]
-    last_msg_tokens = count_message_tokens(last_msg, enc)
-
-    if last_msg_tokens > max_tokens:
-        # If even the last message is too big, truncate its content
-        truncated_content = enc.decode(enc.encode(last_msg["content"])[:max_tokens - 4])
-        return [{"role": last_msg["role"], "content": truncated_content}]
-    
-    trimmed.insert(0, last_msg)
-    total_tokens += last_msg_tokens
-
-    # Add earlier messages in reverse until limit is reached
-    for message in reversed(history[:-1]):
-        message_tokens = count_message_tokens(message, enc)
-        if total_tokens + message_tokens > max_tokens:
-            break
-        trimmed.insert(0, message)
-        total_tokens += message_tokens
-
-    return trimmed
-
-class GPTAgent:
-    def __init__(self):
+class GenericOpenAIAgent:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+    ):
         self.history = []
-        self.llm = GPTClient()
-    
-    def test(self):
-        return self.llm.run([{"role": "system", "content": "hello"}])
+        self.llm = GenericOpenAIClient(
+            base_url=base_url,
+            model=model,
+            api_key=api_key,
+        )
 
     def init_context(self, problem_desc: str, instructions: str, apis: dict[str, str]):
         """Initialize the context for the agent."""
@@ -83,7 +59,7 @@ class GPTAgent:
         self.history.append({"role": "user", "content": self.task_message})
 
     async def get_action(self, input) -> str:
-        """Wrapper to interface the agent with OpsBench.
+        """Wrapper to interface the agent with AIOpsLab.
 
         Args:
             input (str): The input from the orchestrator/environment.
@@ -92,9 +68,9 @@ class GPTAgent:
             str: The response from the agent.
         """
         self.history.append({"role": "user", "content": input})
-        trimmed_history = trim_history_to_token_limit(self.history)
-        response = self.llm.run(trimmed_history)
-        print(f"===== Agent (GPT-4o-mini) ====\n{response}")
+        response = self.llm.run(self.history)
+        model_name = self.llm.model
+        print(f"===== Agent (GenericOpenAI - {model_name}) ====\n{response[0]}")
         self.history.append({"role": "assistant", "content": response[0]})
         return response[0]
 
@@ -105,22 +81,20 @@ class GPTAgent:
 if __name__ == "__main__":
     # Load use_wandb from environment variable with a default of False
     use_wandb = os.getenv("USE_WANDB", "false").lower() == "true"
-    
+
     if use_wandb:
-        # Initialize wandb running
         wandb.init(project="AIOpsLab", entity="AIOpsLab")
 
     problems = ProblemRegistry().PROBLEM_REGISTRY
     for pid in problems:
-        agent = GPTAgent()
+        agent = GenericOpenAIAgent()
 
         orchestrator = Orchestrator()
-        orchestrator.register_agent(agent, name="gpt-w-shell")
+        orchestrator.register_agent(agent, name="generic-openai")
 
         problem_desc, instructs, apis = orchestrator.init_problem(pid)
         agent.init_context(problem_desc, instructs, apis)
         asyncio.run(orchestrator.start_problem(max_steps=30))
 
     if use_wandb:
-        # Finish the wandb run
         wandb.finish()

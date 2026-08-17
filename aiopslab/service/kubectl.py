@@ -18,10 +18,20 @@ class KubeCtl:
         """Initialize the KubeCtl object and load the Kubernetes configuration."""
 
         import os
-        
-        # Support parallel execution via AIOPSLAB_CLUSTER environment variable
-        cluster_env = os.environ.get('AIOPSLAB_CLUSTER', 'kind')
-        context = f"kind-{cluster_env}"
+        from aiopslab.paths import config as app_config
+
+        # For kind clusters, support parallel execution via AIOPSLAB_CLUSTER env var.
+        # For remote clusters (k8s_host is an IP/hostname), use the default kubeconfig context.
+        k8s_host = app_config.get("k8s_host", "kind")
+        cluster_env = os.environ.get('AIOPSLAB_CLUSTER')
+
+        if cluster_env:
+            context = f"kind-{cluster_env}"
+        elif k8s_host == "kind":
+            context = "kind-kind"
+        else:
+            context = None  # use default kubeconfig context
+
         config.load_kube_config(context=context)
         
         self.core_v1_api = client.CoreV1Api()
@@ -44,15 +54,27 @@ class KubeCtl:
         service_info = self.core_v1_api.read_namespaced_service(service_name, namespace)
         return service_info.spec.cluster_ip  # type: ignore
     
-    def get_container_runtime(self):
+    def get_container_runtime(self, max_wait: int = 60, poll_interval: int = 2):
         """
             Retrieve the container runtime used by the cluster.
             If the cluster uses multiple container runtimes, the first one found will be returned.
+            
+            Args:
+                max_wait: Maximum seconds to wait for a Ready node (default: 60)
+                poll_interval: Seconds between checks (default: 2)
+            
+            Returns:
+                Container runtime version string, or None if no Ready node found within max_wait.
         """
-        for node in self.core_v1_api.list_node().items:
-            for status in node.status.conditions:
-                if status.type == "Ready" and status.status == "True":
-                    return node.status.node_info.container_runtime_version
+        elapsed = 0
+        while elapsed < max_wait:
+            for node in self.core_v1_api.list_node().items:
+                for status in node.status.conditions:
+                    if status.type == "Ready" and status.status == "True":
+                        return node.status.node_info.container_runtime_version
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+        return None
 
     def get_pod_name(self, namespace, label_selector):
         """Get the name of the first pod in a namespace that matches a given label selector."""
@@ -76,6 +98,19 @@ class KubeCtl:
         """Fetch the deployment configuration."""
         return self.apps_v1_api.read_namespaced_deployment(name, namespace)
 
+    @staticmethod
+    def _pod_is_ready_or_succeeded(pod):
+        """Return True when a pod is ready or has completed successfully."""
+        status = getattr(pod, "status", None)
+        if getattr(status, "phase", None) == "Succeeded":
+            return True
+
+        container_statuses = getattr(status, "container_statuses", None)
+        return bool(container_statuses) and all(
+            getattr(container_status, "ready", False)
+            for container_status in container_statuses
+        )
+
     def wait_for_ready(self, namespace, sleep=2, max_wait=300):
         """Wait for all pods in a namespace to be in a Ready state before proceeding."""
 
@@ -92,8 +127,7 @@ class KubeCtl:
                     if pod_list.items:
                         ready_pods = [
                             pod for pod in pod_list.items
-                            if pod.status.container_statuses and
-                            all(cs.ready for cs in pod.status.container_statuses)
+                            if self._pod_is_ready_or_succeeded(pod)
                         ]
 
                         if len(ready_pods) == len(pod_list.items):

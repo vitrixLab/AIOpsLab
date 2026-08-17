@@ -23,9 +23,16 @@ class SymptomFaultInjector(FaultInjector):
             "chart_path": "chaos-mesh/chaos-mesh",
             "namespace": "chaos-mesh",
             "version": "2.6.2",
+            "remote_chart": True,
         }
 
         container_runtime = self.kubectl.get_container_runtime()
+
+        if container_runtime is None:
+            raise ValueError(
+                "Could not detect container runtime. "
+                "Ensure the cluster is running and at least one node is Ready."
+            )
 
         if "docker" in container_runtime:
             pass
