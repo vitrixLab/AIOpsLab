@@ -11,6 +11,7 @@ from aiopslab.orchestrator.parser import ResponseParser
 from aiopslab.utils.status import *
 from aiopslab.utils.critical_section import CriticalSection
 from aiopslab.service.telemetry.prometheus import Prometheus
+from aiopslab.timing import FAULT_OCCURRED, MITIGATION_COMPLETED
 import time
 import inspect
 import asyncio
@@ -49,6 +50,8 @@ class Orchestrator:
         deployment = self.probs.get_problem_deployment(problem_id)
         self.session.set_problem(prob, pid=problem_id)
         self.session.set_agent(self.agent_name)
+        if hasattr(prob, "set_timing"):
+            prob.set_timing(self.session.timing)
 
         if deployment != "docker":
             print("Setting up OpenEBS...")
@@ -76,6 +79,7 @@ class Orchestrator:
         with CriticalSection():
             # inject fault
             prob.inject_fault()
+            self.session.timing.mark(FAULT_OCCURRED)
             atexit.register(exit_cleanup_fault, prob=prob)
 
         # Check if start_workload is async or sync
@@ -138,6 +142,14 @@ class Orchestrator:
             env_response = str(e)
             print("Unhandled exception:", e)
 
+        if env_response == SubmissionStatus.VALID_SUBMISSION:
+            completion_event = getattr(
+                self.session.problem, "timing_completion_event", None
+            )
+            # Mitigation completion is oracle-driven and is recorded after eval().
+            if completion_event and completion_event != MITIGATION_COMPLETED:
+                self.session.timing.mark(completion_event)
+
         self.session.add({"role": "env", "content": env_response})
 
         return env_response
@@ -187,6 +199,17 @@ class Orchestrator:
             results = self.session.problem.eval(
                 self.session.solution, self.session.history, self.session.get_duration()
             )
+
+            # Mitigation has a stronger completion boundary than submit(): the
+            # task-specific evaluator must first confirm successful recovery.
+            if (
+                results.get("success")
+                and getattr(self.session.problem, "timing_completion_event", None)
+                == MITIGATION_COMPLETED
+            ):
+                self.session.timing.mark(MITIGATION_COMPLETED)
+
+            results["timing_events"] = self.session.timing.to_dict()
             self.sprint.result(results)
 
         self.session.set_results(results)

@@ -10,12 +10,17 @@ from aiopslab.orchestrator.tasks.base import Task
 from aiopslab.orchestrator.actions.mitigation import MitigationActions
 from aiopslab.service.apps.base import Application
 from aiopslab.session import SessionItem
+from aiopslab.timing import MITIGATION_COMPLETED
 from aiopslab.utils.actions import get_actions
 from aiopslab.utils.status import InvalidActionError
 
 
 class MitigationTask(Task):
     """An AIOps anomaly mitigation task."""
+
+    # Mitigation completion is recorded after the task-specific recovery oracle
+    # confirms that the environment is healthy, not merely when submit() is called.
+    timing_completion_event = MITIGATION_COMPLETED
 
     def __init__(self, app: Application):
         super().__init__()

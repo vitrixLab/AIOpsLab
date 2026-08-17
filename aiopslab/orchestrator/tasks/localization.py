@@ -11,12 +11,15 @@ from aiopslab.orchestrator.tasks.base import Task
 from aiopslab.orchestrator.actions.localization import LocalizationActions
 from aiopslab.service.apps.base import Application
 from aiopslab.session import SessionItem
+from aiopslab.timing import LOCALIZATION_COMPLETED
 from aiopslab.utils.actions import get_actions
 from aiopslab.utils.status import InvalidActionError
 
 
 class LocalizationTask(Task):
     """An AIOps fault localization task."""
+
+    timing_completion_event = LOCALIZATION_COMPLETED
 
     def __init__(self, app: Application):
         super().__init__()
@@ -54,7 +57,8 @@ class LocalizationTask(Task):
             
             Or, if no faults are found:
 
-            ```\nsubmit([])\n```
+            ```\nsubmit([])
+            ```
 
             Please respond with only a single API call (a.k.a., action) per turn without any additional words, labels, or prefixes.
             """
