@@ -10,12 +10,15 @@ from aiopslab.orchestrator.tasks.base import Task
 from aiopslab.orchestrator.actions.analysis import AnalysisActions
 from aiopslab.service.apps.base import Application
 from aiopslab.session import SessionItem
+from aiopslab.timing import ANALYSIS_COMPLETED
 from aiopslab.utils.actions import get_actions
 from aiopslab.utils.status import InvalidActionError
 
 
 class AnalysisTask(Task):
     """An AIOps root cause analysis task."""
+
+    timing_completion_event = ANALYSIS_COMPLETED
 
     def __init__(self, app: Application):
         super().__init__()

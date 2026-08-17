@@ -6,6 +6,7 @@ from aiopslab.paths import BASE_DIR
 from aiopslab.service.kubectl import KubeCtl
 from aiopslab.orchestrator.evaluators.quantitative import *
 from aiopslab.orchestrator.evaluators.qualitative import LLMJudge
+from aiopslab.timing import EvaluationTiming
 
 
 config = Config(BASE_DIR / "config.yml")
@@ -14,9 +15,21 @@ config = Config(BASE_DIR / "config.yml")
 class Task:
     """Base class for all tasks."""
 
+    timing_completion_event = None
+
     def __init__(self):
         self.results = {}
         self.kubectl = KubeCtl()
+        self.timing: EvaluationTiming | None = None
+
+    def set_timing(self, timing: EvaluationTiming):
+        """Attach the session timing recorder to this task."""
+        self.timing = timing
+
+    def mark_timing_completion(self):
+        """Record this task's completion event when an event boundary is defined."""
+        if self.timing is not None and self.timing_completion_event:
+            self.timing.mark(self.timing_completion_event)
 
     def get_task_description(self):
         raise NotImplementedError("Subclasses must implement this method.")

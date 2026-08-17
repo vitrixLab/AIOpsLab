@@ -10,6 +10,7 @@ import wandb
 from pydantic import BaseModel
 
 from aiopslab.paths import RESULTS_DIR
+from aiopslab.timing import EvaluationTiming
 
 
 class SessionItem(BaseModel):
@@ -29,6 +30,7 @@ class Session:
         self.end_time = None
         self.agent_name = None
         self.results_dir = results_dir
+        self.timing = EvaluationTiming()
 
     def set_problem(self, problem, pid=None):
         """Set the problem instance for the session.
@@ -60,7 +62,7 @@ class Session:
         """Set the agent name for the session.
 
         Args:
-            agent_name (str): The name of the agent.
+            agent_name (str): The name of the agent (default: "agent").
         """
         self.agent_name = agent_name
 
@@ -108,6 +110,7 @@ class Session:
             "problem_id": self.pid,
             "start_time": self.start_time,
             "end_time": self.end_time,
+            "timing_events": self.timing.to_dict(),
             "trace": [item.model_dump() for item in self.history],
             "results": self.results,
         }
@@ -137,4 +140,6 @@ class Session:
         self.start_time = data.get("start_time")
         self.end_time = data.get("end_time")
         self.results = data.get("results")
-        self.history = [SessionItem.model_validate(item) for item in data.get("trace")]
+        self.history = [SessionItem.model_validate(item) for item in data.get("trace", [])]
+        for event, timestamp in data.get("timing_events", {}).items():
+            self.timing.mark(event, timestamp)
